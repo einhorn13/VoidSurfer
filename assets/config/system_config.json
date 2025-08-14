@@ -1,0 +1,55 @@
+{
+    "sun": {
+        "size": 350,
+        "position": [0, 0, -5000],
+        "color": "fdfbd3"
+    },
+    "planets": [
+        {
+            "id": "TERRA",
+            "name": "Terra",
+            "size": 80,
+            "position": [-1200, 150, -3500],
+            "color": "87ceeb",
+            "moons": [
+                {
+                    "id": "LUNA",
+                    "name": "Luna",
+                    "size": 20,
+                    "position": [150, 20, 0],
+                    "color": "aaaaaa"
+                }
+            ]
+        },
+        {
+            "id": "MARS",
+            "name": "Mars",
+            "size": 60,
+            "position": [2000, -100, -4000],
+            "color": "e57373"
+        },
+        {
+            "id": "GAS_GIANT",
+            "name": "Gas Giant",
+            "size": 200,
+            "position": [3500, 200, -6500],
+            "color": "f5deb3",
+            "moons": [
+                {
+                    "id": "EUROPA",
+                    "name": "Europa",
+                    "size": 30,
+                    "position": [300, 0, 50],
+                    "color": "e0e0e0"
+                },
+                {
+                    "id": "IO",
+                    "name": "Io",
+                    "size": 25,
+                    "position": [-280, 40, -80],
+                    "color": "ffd54f"
+                }
+            ]
+        }
+    ]
+}

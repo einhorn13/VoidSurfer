@@ -1,0 +1,29 @@
+{
+    "id": "VIPER_MK2",
+    "name": "Viper Mk2",
+    "cost": 0,
+    "faction": "PLAYER_FACTION",
+    "hull": 100,
+    "baseMass": 50,
+    "energy": 100,
+    "energyRegen": 8,
+    "cargoCapacity": 20,
+    "turnSpeed": 1.8,
+    "proceduralModel": {
+        "color": "cccccc",
+        "components": [
+            { "type": "box", "size": [2.5, 0.4, 3], "pos": [0, 0, 0] },
+            { "type": "box", "size": [0.8, 0.5, 1], "pos": [0, 0.45, -0.8] },
+            { "type": "box", "size": [0.4, 0.6, 0.8], "pos": [-1.0, 0.1, 1.4] },
+            { "type": "box", "size": [0.4, 0.6, 0.8], "pos": [1.0, 0.1, 1.4] }
+        ]
+    },
+    "drops": {},
+    "ammo": { "PROJECTILE": 250 },
+    "engineSlot": { "type": "CLASS_2", "equipped": "BASIC_ENGINE" },
+    "shieldSlot": { "type": "CLASS_2", "equipped": "BASIC_SHIELD" },
+    "hardpoints": [
+        { "type": "LIGHT", "equipped": "PULSE_LASER" },
+        { "type": "LIGHT", "equipped": "MACHINE_GUN" }
+    ]
+}

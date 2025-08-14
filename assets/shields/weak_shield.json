@@ -1,0 +1,7 @@
+{
+    "id": "WEAK_SHIELD",
+    "name": "Weak Shield",
+    "capacity": 20,
+    "regenRate": 2,
+    "mass": 8
+}

@@ -1,0 +1,7 @@
+{
+    "id": "WEAK_ENGINE",
+    "name": "Weak Engine",
+    "maxSpeed": 35,
+    "acceleration": 10,
+    "mass": 15
+}

@@ -1,0 +1,7 @@
+{
+    "id": "HEAVY_ENGINE",
+    "name": "Heavy Engine",
+    "maxSpeed": 40,
+    "acceleration": 12,
+    "mass": 20
+}

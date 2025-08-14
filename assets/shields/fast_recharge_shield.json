@@ -1,0 +1,7 @@
+{
+    "id": "FAST_RECHARGE_SHIELD",
+    "name": "Fast Recharge Shield",
+    "capacity": 80,
+    "regenRate": 10,
+    "mass": 4
+}

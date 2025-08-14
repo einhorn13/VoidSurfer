@@ -1,0 +1,22 @@
+{
+    "id": "FREIGHTER",
+    "name": "Freighter",
+    "faction": "CIVILIAN_FACTION",
+    "hull": 500,
+    "baseMass": 300,
+    "energy": 100,
+    "energyRegen": 3,
+    "cargoCapacity": 200,
+    "turnSpeed": 0.5,
+    "proceduralModel": {
+        "color": "8888ff",
+        "components": [
+            { "type": "box", "size": [6, 4, 12], "pos": [0, 0, 0] }
+        ]
+    },
+    "drops": { "credits": [10, 50] },
+    "ammo": {},
+    "engineSlot": { "type": "CLASS_4", "equipped": "HEAVY_ENGINE" },
+    "shieldSlot": { "type": "CLASS_4", "equipped": "HEAVY_SHIELD" },
+    "hardpoints": []
+}

@@ -1,0 +1,30 @@
+{
+    "id": "GUNSHIP",
+    "name": "Gunship",
+    "cost": 25000,
+    "faction": "PLAYER_FACTION",
+    "hull": 200,
+    "baseMass": 120,
+    "energy": 80,
+    "energyRegen": 5,
+    "cargoCapacity": 40,
+    "turnSpeed": 1.2,
+    "aiBehavior": "gunship",
+    "proceduralModel": {
+        "color": "99aaff",
+        "components": [
+            { "type": "box", "size": [4, 1, 5], "pos": [0, 0, 0] },
+            { "type": "box", "size": [1, 0.8, 1.5], "pos": [0, 0.9, -1.5] },
+            { "type": "box", "size": [0.8, 0.8, 2], "pos": [-1.5, 0, 2] },
+            { "type": "box", "size": [0.8, 0.8, 2], "pos": [1.5, 0, 2] }
+        ]
+    },
+    "drops": { "credits": [500, 1500], "items": [{ "itemId": "IRON_ORE", "quantity": [0, 2], "chance": 0.25 }] },
+    "ammo": { "PROJECTILE": 500, "MISSILE": 10 },
+    "engineSlot": { "type": "CLASS_3", "equipped": "HEAVY_ENGINE" },
+    "shieldSlot": { "type": "CLASS_3", "equipped": "HEAVY_SHIELD" },
+    "hardpoints": [
+        { "type": "LIGHT", "equipped": "MACHINE_GUN" },
+        { "type": "LIGHT", "equipped": "HOMING_MISSILE_LAUNCHER" }
+    ]
+}

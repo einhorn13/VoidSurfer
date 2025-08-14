@@ -1,0 +1,6 @@
+{
+    "id": "IRON",
+    "health": 150,
+    "color": "af8973",
+    "resources": { "itemId": "IRON_ORE", "amount": [2, 5] }
+}

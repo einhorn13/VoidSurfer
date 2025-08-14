@@ -1,0 +1,29 @@
+{
+    "id": "INTERCEPTOR",
+    "name": "Interceptor",
+    "cost": 8500,
+    "faction": "PLAYER_FACTION",
+    "hull": 60,
+    "baseMass": 35,
+    "energy": 120,
+    "energyRegen": 12,
+    "cargoCapacity": 10,
+    "turnSpeed": 2.2,
+    "aiBehavior": "interceptor",
+    "proceduralModel": {
+        "color": "ccffcc",
+        "components": [
+            { "type": "box", "size": [2.5, 0.4, 3], "pos": [0, 0, 0] },
+            { "type": "box", "size": [0.8, 0.5, 1], "pos": [0, 0.45, -0.8] },
+            { "type": "box", "size": [0.4, 0.6, 0.8], "pos": [-1.0, 0.1, 1.4] },
+            { "type": "box", "size": [0.4, 0.6, 0.8], "pos": [1.0, 0.1, 1.4] }
+        ]
+    },
+    "drops": {},
+    "ammo": {},
+    "engineSlot": { "type": "CLASS_2", "equipped": "PERFORMANCE_ENGINE" },
+    "shieldSlot": { "type": "CLASS_1", "equipped": "FAST_RECHARGE_SHIELD" },
+    "hardpoints": [
+        { "type": "LIGHT", "equipped": "PULSE_LASER" }
+    ]
+}

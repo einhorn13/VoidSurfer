@@ -1,0 +1,12 @@
+{
+    "id": "PULSE_LASER",
+    "name": "Pulse Laser",
+    "type": "LASER",
+    "slotType": "LIGHT",
+    "damage": 10,
+    "energyCost": 5,
+    "fireRate": 0.2,
+    "color": "00ff00",
+    "speed": 200,
+    "mass": 2
+}

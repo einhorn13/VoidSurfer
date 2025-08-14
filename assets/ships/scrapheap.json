@@ -1,0 +1,27 @@
+{
+    "id": "SCRAPHEAP",
+    "name": "Scrapheap",
+    "faction": "PIRATE_FACTION",
+    "hull": 40,
+    "baseMass": 80,
+    "energy": 40,
+    "energyRegen": 3,
+    "cargoCapacity": 3,
+    "turnSpeed": 1.0,
+    "aiBehavior": "standard",
+    "proceduralModel": {
+        "color": "8c7853",
+        "components": [
+            { "type": "box", "size": [2, 0.8, 3.5], "pos": [0, 0, 0] },
+            { "type": "box", "size": [0.5, 0.5, 1.5], "pos": [0.5, 0.6, -1] },
+            { "type": "box", "size": [1, 1, 1], "pos": [-1.2, 0, 0.5] }
+        ]
+    },
+    "drops": { "credits": [10, 50], "items": [] },
+    "ammo": {},
+    "engineSlot": { "type": "CLASS_1", "equipped": "WEAK_ENGINE" },
+    "shieldSlot": { "type": "CLASS_1", "equipped": "WEAK_SHIELD" },
+    "hardpoints": [
+        { "type": "LIGHT", "equipped": "PULSE_LASER" }
+    ]
+}

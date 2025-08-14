@@ -1,0 +1,7 @@
+{
+    "id": "PERFORMANCE_ENGINE",
+    "name": "Performance Engine",
+    "maxSpeed": 70,
+    "acceleration": 30,
+    "mass": 8
+}

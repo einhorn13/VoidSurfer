@@ -1,0 +1,6 @@
+{
+    "id": "ROCK",
+    "health": 100,
+    "color": "888888",
+    "resources": { "itemId": null }
+}

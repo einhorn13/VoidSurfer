@@ -1,0 +1,7 @@
+{
+    "id": "BASIC_SHIELD",
+    "name": "Basic Shield",
+    "capacity": 100,
+    "regenRate": 5,
+    "mass": 5
+}

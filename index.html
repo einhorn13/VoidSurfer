@@ -1,0 +1,173 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite HTML5 - Final Phase 4</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; color: #0f0; font-family: 'Courier New', Courier, monospace; cursor: none; } /* Hide system cursor */
+        canvas { display: block; }
+        #hud {
+            position: absolute; bottom: 10px; left: 10px;
+            width: 400px; height: 160px;
+            background-color: rgba(0, 50, 0, 0.5);
+            border: 1px solid #0f0;
+        }
+        #hud-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: red; opacity: 0;
+            pointer-events: none; transition: opacity 0.5s;
+        }
+
+        #dock-prompt, #station-menu, #shipyard-menu { /* Common modal styles */
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 20, 0, 0.9); border: 2px solid #0f0;
+            padding: 20px; display: none;
+            cursor: default; /* Show cursor over UI */
+        }
+        #dock-prompt { background-color: rgba(0, 80, 0, 0.7); font-size: 24px; font-weight: bold; }
+        #station-menu { width: 400px; flex-direction: column; gap: 15px; }
+        #station-menu h2 { margin: 0 0 10px 0; text-align: center; color: #0f0; }
+        #station-menu button {
+            background-color: #050; border: 1px solid #0f0;
+            color: #0f0; padding: 10px; font-size: 16px;
+            cursor: pointer; text-align: left;
+        }
+        #station-menu button:hover { background-color: #080; }
+        #station-menu .cost { float: right; }
+        #shipyard-menu { width: 500px; flex-direction: column; gap: 10px; }
+        #shipyard-menu h2 { margin: 0 0 10px 0; text-align: center; }
+        #shipyard-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
+        #shipyard-list li {
+            background-color: #030; padding: 8px; border: 1px solid #050;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        #shipyard-list button { background-color: #080; border: 1px solid #0f0; color: #0f0; padding: 5px 10px; cursor: pointer; }
+        #shipyard-list button:hover { background-color: #0a0; }
+        #shipyard-list button:disabled { background-color: #333; color: #888; cursor: not-allowed; }
+
+        #scanner-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+        }
+        .scanner-target {
+            position: absolute; width: 12px; height: 12px;
+            border: 2px solid yellow; transform: translate(-50%, -50%);
+            box-sizing: border-box;
+        }
+        .scanner-distance-text {
+            position: absolute;
+            transform: translateX(-50%);
+            color: #ccc;
+            font-size: 12px;
+            text-shadow: 1px 1px 2px black;
+        }
+        #nav-pointer {
+            position: absolute; color: #00ffaa;
+            transform: translate(-50%, -50%); display: none;
+            font-size: 20px; font-weight: bold; text-shadow: 0 0 5px #00ffaa;
+        }
+
+        #console-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 40%;
+            background-color: rgba(0, 10, 0, 0.85);
+            border-bottom: 2px solid #0f0;
+            box-sizing: border-box;
+            display: none;
+            flex-direction: column;
+            padding: 10px;
+            cursor: text;
+        }
+        #console-output {
+            flex-grow: 1;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #eee;
+        }
+        #console-output li {
+            padding: 2px 0;
+        }
+        #console-input-wrapper {
+            display: flex;
+        }
+        #console-input-wrapper span {
+            font-size: 16px;
+            margin-right: 8px;
+        }
+        #console-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+        }
+        #console-input:focus {
+            outline: none;
+        }
+
+        /* --- NEW: Custom Mouse Cursor --- */
+        #mouse-cursor {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border: 2px solid #0f0;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="damage-overlay"></div>
+    <div id="hud">
+        <canvas id="hud-canvas"></canvas>
+    </div>
+    <div id="dock-prompt">Press 'G' to Dock</div>
+    <div id="station-menu">
+        <h2>Station Services</h2>
+        <button id="btn-repair">Repair Hull <span class="cost" id="cost-repair">0 CR</span></button>
+        <button id="btn-rearm">Rearm <span class="cost" id="cost-rearm">0 CR</span></button>
+        <button id="btn-shipyard">Shipyard</button>
+        <button id="btn-undock">Undock</button>
+    </div>
+    <div id="shipyard-menu">
+        <h2>Shipyard</h2>
+        <ul id="shipyard-list"></ul>
+        <button id="btn-shipyard-back" style="margin-top: 15px;">Back to Services</button>
+    </div>
+    <div id="scanner-container"></div>
+    <div id="nav-pointer">[+]</div>
+
+    <div id="console-container">
+        <ul id="console-output"></ul>
+        <div id="console-input-wrapper">
+            <span>></span>
+            <input type="text" id="console-input" autocomplete="off" />
+        </div>
+    </div>
+    
+    <!-- NEW: Cursor Element -->
+    <div id="mouse-cursor"></div>
+
+    <script type="importmap">
+        { "imports": { 
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        } }
+    </script>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

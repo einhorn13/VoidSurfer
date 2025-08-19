@@ -4,7 +4,7 @@
     "type": "LASER",
     "slotType": "LIGHT",
     "damage": 15,
-    "energyCost": 8,
+    "energyCost": 9,
     "fireRate": 0.3,
     "color": "ffa500",
     "speed": 150,

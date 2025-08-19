@@ -1,5 +1,6 @@
 {
     "id": "IRON_ORE",
     "name": "Iron Ore",
-    "mass": 1
+    "mass": 1,
+    "basePrice": 25
 }

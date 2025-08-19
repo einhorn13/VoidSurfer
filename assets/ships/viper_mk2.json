@@ -19,11 +19,14 @@
         ]
     },
     "drops": {},
-    "ammo": { "PROJECTILE": 250 },
+    "ammo": {
+        "MISSILE": 3
+    },
     "engineSlot": { "type": "CLASS_2", "equipped": "BASIC_ENGINE" },
     "shieldSlot": { "type": "CLASS_2", "equipped": "BASIC_SHIELD" },
     "hardpoints": [
-        { "type": "LIGHT", "equipped": "PULSE_LASER" },
-        { "type": "LIGHT", "equipped": "MACHINE_GUN" }
+        { "type": "LIGHT", "equipped": "PULSE_LASER", "pos": [-1.0, 0.1, -1.0] },
+        { "type": "LIGHT", "equipped": "LIGHT_PLASMA_GUN", "pos": [1.0, 0.1, -1.0] },
+        { "type": "LIGHT", "equipped": "MISSILE_LAUNCHER", "pos": [0.0, -0.5, 0.0] }
     ]
 }

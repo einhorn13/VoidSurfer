@@ -2,6 +2,6 @@
     "id": "HEAVY_SHIELD",
     "name": "Heavy Shield",
     "capacity": 200,
-    "regenRate": 4,
+    "regenRate": 3,
     "mass": 10
 }

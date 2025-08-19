@@ -8,6 +8,7 @@
     "energyRegen": 3,
     "cargoCapacity": 200,
     "turnSpeed": 0.5,
+    "aiBehavior": "trader",
     "proceduralModel": {
         "color": "8888ff",
         "components": [

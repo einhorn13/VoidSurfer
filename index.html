@@ -25,7 +25,7 @@
             pointer-events: none; transition: opacity 0.5s;
         }
 
-        #dock-prompt, #station-menu, #shipyard-menu { /* Common modal styles */
+        #dock-prompt, #station-menu, #shipyard-menu, #market-menu { /* Common modal styles */
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             background-color: rgba(0, 20, 0, 0.9); border: 2px solid #0f0;
@@ -44,13 +44,13 @@
         #station-menu .cost { float: right; }
         #shipyard-menu { width: 500px; flex-direction: column; gap: 10px; }
         #shipyard-menu h2 { margin: 0 0 10px 0; text-align: center; }
-        #shipyard-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
-        #shipyard-list li {
+        #shipyard-list, #market-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
+        #shipyard-list li, #market-list li {
             background-color: #030; padding: 8px; border: 1px solid #050;
             display: flex; justify-content: space-between; align-items: center;
         }
-        #shipyard-list button { background-color: #080; border: 1px solid #0f0; color: #0f0; padding: 5px 10px; cursor: pointer; }
-        #shipyard-list button:hover { background-color: #0a0; }
+        #shipyard-list button, #market-list button { background-color: #080; border: 1px solid #0f0; color: #0f0; padding: 5px 10px; cursor: pointer; }
+        #shipyard-list button:hover, #market-list button:hover { background-color: #0a0; }
         #shipyard-list button:disabled { background-color: #333; color: #888; cursor: not-allowed; }
 
         #scanner-container {
@@ -59,19 +59,19 @@
         }
         .scanner-target {
             position: absolute; width: 12px; height: 12px;
-            border: 2px solid yellow; transform: translate(-50%, -50%);
+            border: 2px solid yellow;
             box-sizing: border-box;
         }
         .scanner-distance-text {
             position: absolute;
-            transform: translateX(-50%);
             color: #ccc;
             font-size: 12px;
             text-shadow: 1px 1px 2px black;
+            white-space: nowrap;
         }
         #nav-pointer {
             position: absolute; color: #00ffaa;
-            transform: translate(-50%, -50%); display: none;
+            display: none;
             font-size: 20px; font-weight: bold; text-shadow: 0 0 5px #00ffaa;
         }
 
@@ -116,7 +116,6 @@
             outline: none;
         }
 
-        /* --- NEW: Custom Mouse Cursor --- */
         #mouse-cursor {
             position: absolute;
             width: 10px;
@@ -127,21 +126,134 @@
             pointer-events: none;
             box-sizing: border-box;
         }
+        
+        #notification-log {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .log-message {
+            background-color: rgba(0, 20, 0, 0.7);
+            border-left: 3px solid #0f0;
+            padding: 8px 12px;
+            font-size: 14px;
+            transition: opacity 0.5s;
+        }
+        .log-message.type-info { border-left-color: #33aaff; color: #ccffff; }
+        .log-message.type-success { border-left-color: #44ff44; color: #ccffcc; }
+        .log-message.type-warning { border-left-color: #ffaa00; color: #ffeecc; }
+        .log-message.type-danger { border-left-color: #ff3333; color: #ffcccc; }
+
+        #crosshair {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            color: #00ff00;
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 20px;
+            pointer-events: none;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        #loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            color: #0f0;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 24px;
+            z-index: 1000;
+        }
+        #loading-progress-bar-container {
+            width: 300px;
+            height: 10px;
+            border: 1px solid #0f0;
+            margin-top: 20px;
+        }
+        #loading-progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: #0f0;
+            transition: width 0.1s linear;
+        }
+        
+        /* NEW STYLES FOR TARGET DISPLAY */
+        #target-display {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 250px;
+            background-color: rgba(0, 50, 0, 0.5);
+            border: 1px solid #0f0;
+            padding: 8px;
+            display: none; /* Initially hidden */
+            font-family: 'Courier New', Courier, monospace;
+            color: #0f0;
+            font-size: 14px;
+        }
+        #target-display .target-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #target-display .target-bar-container {
+            display: flex;
+            align-items: center;
+            margin-top: 4px;
+        }
+        #target-display .target-bar-label {
+            width: 35px; /* Fixed width for SHD/HULL labels */
+        }
+        #target-display .target-bar {
+            flex-grow: 1;
+            height: 10px;
+            background-color: #050;
+            border: 1px solid #0f0;
+        }
+        #target-display .target-bar-fill {
+            height: 100%;
+            transition: width 0.2s linear;
+        }
 
     </style>
 </head>
 <body>
+    <div id="loading-overlay">
+        <h1>Loading Assets...</h1>
+        <div id="loading-progress-bar-container">
+            <div id="loading-progress-bar"></div>
+        </div>
+    </div>
+
     <div id="damage-overlay"></div>
     <div id="hud">
         <canvas id="hud-canvas"></canvas>
     </div>
+    <div id="target-display"></div>
+
     <div id="dock-prompt">Press 'G' to Dock</div>
     <div id="station-menu">
         <h2>Station Services</h2>
         <button id="btn-repair">Repair Hull <span class="cost" id="cost-repair">0 CR</span></button>
         <button id="btn-rearm">Rearm <span class="cost" id="cost-rearm">0 CR</span></button>
+        <button id="btn-market">Market</button>
         <button id="btn-shipyard">Shipyard</button>
         <button id="btn-undock">Undock</button>
+    </div>
+    <div id="market-menu" style="width: 500px; flex-direction: column; gap: 10px;">
+        <h2>Market</h2>
+        <p>Sell items from your cargo hold.</p>
+        <ul id="market-list"></ul>
+        <button id="btn-market-back" style="margin-top: 15px;">Back to Services</button>
     </div>
     <div id="shipyard-menu">
         <h2>Shipyard</h2>
@@ -159,8 +271,9 @@
         </div>
     </div>
     
-    <!-- NEW: Cursor Element -->
     <div id="mouse-cursor"></div>
+    <div id="notification-log"></div>
+    <div id="crosshair">+</div>
 
     <script type="importmap">
         { "imports": { 

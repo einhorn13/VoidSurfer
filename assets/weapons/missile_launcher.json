@@ -1,0 +1,19 @@
+{
+    "id": "MISSILE_LAUNCHER",
+    "name": "Missile L.",
+    "type": "HOMING",
+    "slotType": "LIGHT",
+    "damage": 75,
+    "energyCost": 0,
+    "ammoType": "MISSILE",
+    "ammoCost": 1,
+    "fireRate": 1.5,
+    "mass": 5,
+    "lifetime": 15.0,
+    "collisionRadius": 2.0,
+    "pierce": 0,
+    "explosionRadius": 25,
+    "proximityFuze": 5.0,
+    "hitScan": false,
+    "continuous": false
+}

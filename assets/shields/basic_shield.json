@@ -2,6 +2,6 @@
     "id": "BASIC_SHIELD",
     "name": "Basic Shield",
     "capacity": 100,
-    "regenRate": 5,
+    "regenRate": 4,
     "mass": 5
 }

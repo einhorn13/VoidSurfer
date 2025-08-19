@@ -1,0 +1,19 @@
+{
+    "id": "LIGHT_PLASMA_GUN",
+    "name": "Plasma Gun",
+    "type": "PROJECTILE",
+    "slotType": "LIGHT",
+    "damage": 5,
+    "energyCost": 4,
+    "fireRate": 0.15,
+    "color": "00ccff",
+    "speed": 180,
+    "mass": 3,
+    "lifetime": 3.0,
+    "collisionRadius": 0.1,
+    "pierce": 0,
+    "explosionRadius": 0,
+    "proximityFuze": 0,
+    "hitScan": false,
+    "continuous": false
+}

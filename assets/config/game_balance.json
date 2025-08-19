@@ -1,0 +1,39 @@
+{
+    "stationServices": {
+        "repairCostPerHullPoint": 2,
+        "rearmCostPerAmmo": {
+            "PROJECTILE": 1,
+            "MISSILE": 100
+        }
+    },
+    "playerBoost": {
+        "energyCostPerSecond": 12.5,
+        "activationCost": 10,
+        "speedMultiplier": 2.5
+    },
+    "gameplay": {
+        "station": {
+            "dockingRadius": 200,
+            "maxDockingSpeed": 5
+        },
+        "weapons": {
+            "missileMinRange": 20,
+            "missileMaxRange": 500
+        },
+        "ai": {
+            "scanRange": 500,
+            "attackRange": 150,
+            "fleeHealthThreshold": 0.25,
+            "reengageShieldThreshold": 0.5,
+            "missileCooldown": 5.0,
+            "missileMinRange": 80,
+            "missileMaxRange": 400
+        }
+    },
+    "collisionPhysics": {
+        "minImpactEnergyThreshold": 50,
+        "damageScalar": 0.1,
+        "maxCollisionDamage": 1000,
+        "elasticity": 0.9
+    }
+}

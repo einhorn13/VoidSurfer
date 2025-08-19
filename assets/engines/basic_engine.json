@@ -1,7 +1,7 @@
 {
     "id": "BASIC_ENGINE",
     "name": "Basic Engine",
-    "maxSpeed": 50,
-    "acceleration": 20,
+    "maxSpeed": 25,
+    "acceleration": 10,
     "mass": 10
 }

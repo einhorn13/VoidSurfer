@@ -18,7 +18,11 @@
             { "type": "box", "size": [0.4, 0.6, 0.8], "pos": [1.0, 0.1, 1.4] }
         ]
     },
-    "drops": { "credits": [50, 250], "items": [{ "itemId": "IRON_ORE", "quantity": [0, 1], "chance": 0.1 }] },
+    "bountyCredits": [75, 125],
+    "drops": { 
+        "credits": { "amount": [25, 100], "chance": 0.75 }, 
+        "items": [{ "itemId": "IRON_ORE", "quantity": [0, 1], "chance": 0.1 }] 
+    },
     "ammo": { "PROJECTILE": 100 },
     "engineSlot": { "type": "CLASS_1", "equipped": "BASIC_ENGINE" },
     "shieldSlot": { "type": "CLASS_1", "equipped": "BASIC_SHIELD" },

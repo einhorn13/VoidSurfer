@@ -1,7 +1,7 @@
 {
     "spawnInterval": 5.0,
-    "despawnDistance": 4000,
-    "spawnDistance": { "min": 2500, "max": 3000 },
+    "despawnDistance": 5000,
+    "spawnDistance": { "min": 500, "max": 2500 },
     "factionLimits": {
         "PIRATE_FACTION": 5,
         "CIVILIAN_FACTION": 2

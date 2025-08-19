@@ -19,12 +19,16 @@
             { "type": "box", "size": [0.8, 0.8, 2], "pos": [1.5, 0, 2] }
         ]
     },
-    "drops": { "credits": [500, 1500], "items": [{ "itemId": "IRON_ORE", "quantity": [0, 2], "chance": 0.25 }] },
+    "bountyCredits": [750, 1000],
+    "drops": { 
+        "credits": [250, 500], 
+        "items": [{ "itemId": "IRON_ORE", "quantity": [0, 2], "chance": 0.25 }] 
+    },
     "ammo": { "PROJECTILE": 500, "MISSILE": 10 },
     "engineSlot": { "type": "CLASS_3", "equipped": "HEAVY_ENGINE" },
     "shieldSlot": { "type": "CLASS_3", "equipped": "HEAVY_SHIELD" },
     "hardpoints": [
-        { "type": "LIGHT", "equipped": "MACHINE_GUN" },
-        { "type": "LIGHT", "equipped": "HOMING_MISSILE_LAUNCHER" }
+        { "type": "LIGHT", "equipped": "LIGHT_PLASMA_GUN", "pos": [-1.5, 0, -1.5] },
+        { "type": "LIGHT", "equipped": "MISSILE_LAUNCHER", "pos": [1.5, 0, -1.5] }
     ]
 }

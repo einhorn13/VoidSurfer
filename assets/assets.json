@@ -8,7 +8,8 @@
     "weapons/pulse_laser.json",
     "weapons/machine_gun.json",
     "weapons/mining_laser.json",
-    "weapons/homing_missile_launcher.json",
+    "weapons/missile_launcher.json",
+    "weapons/light_plasma_gun.json",
     "engines/basic_engine.json",
     "engines/performance_engine.json",
     "engines/heavy_engine.json",
@@ -20,6 +21,7 @@
     "items/iron_ore.json",
     "config/spawn_config.json",
     "config/system_config.json",
+    "config/game_balance.json",
     "asteroids/rock.json",
     "asteroids/iron.json"
 ]

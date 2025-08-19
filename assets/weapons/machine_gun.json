@@ -7,7 +7,7 @@
     "energyCost": 0,
     "ammoType": "PROJECTILE",
     "ammoCost": 1,
-    "fireRate": 0.08,
+    "fireRate": 0.1,
     "color": "ffff00",
     "speed": 150,
     "mass": 4

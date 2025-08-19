@@ -1,7 +1,5 @@
+// src/Game.js
 import * as THREE from 'three';
-import { PlayerController } from './PlayerController.js';
-import { ProjectileManager } from './ProjectileManager.js';
-import { EffectsManager } from './EffectsManager.js';
 import { GameStateManager } from './GameStateManager.js';
 import { UIManager } from './UIManager.js';
 import { Scanner } from './Scanner.js';
@@ -9,215 +7,253 @@ import { WorldManager } from './WorldManager.js';
 import { keyState } from './InputController.js';
 import { ConsoleManager } from './ConsoleManager.js';
 import { RendererManager } from './RendererManager.js';
+import { NotificationManager } from './NotificationManager.js';
+import { serviceLocator } from './ServiceLocator.js';
+import { eventBus } from './EventBus.js';
+import { HUDManager } from './HUDManager.js';
+import { StationUIManager } from './StationUIManager.js';
+import { WorldUIManager } from './WorldUIManager.js';
+import { CameraController } from './CameraController.js';
+import { World } from './ecs/World.js';
+import { EntityAssembler } from './EntityAssembler.js';
+import { GameDirector } from './GameDirector.js';
+import { DustEffectComponent } from './components/DustEffectComponent.js';
+
+// Systems
+import { RegenerationSystem } from './systems/RegenerationSystem.js';
+import { MovementSystem } from './systems/MovementSystem.js';
+import { RenderSystem } from './systems/RenderSystem.js';
+import { CollisionSystem } from './systems/CollisionSystem.js';
+import { LootSystem } from './systems/LootSystem.js';
+import { CleanupSystem } from './systems/CleanupSystem.js';
+import { DamageSystem } from './systems/DamageSystem.js';
+import { MissileSystem } from './systems/MissileSystem.js';
+import { StationSystem } from './systems/StationSystem.js';
+import { InstancedRenderSystem } from './systems/InstancedRenderSystem.js';
+import { EffectSystem } from './systems/EffectSystem.js';
+import { EngineTrailSystem } from './systems/EngineTrailSystem.js';
+import { InputSystem } from './systems/InputSystem.js';
+import { AISystem } from './systems/AISystem.js';
+import { HealthBarSystem } from './systems/HealthBarSystem.js';
+import { ItemCollectionSystem } from './systems/ItemCollectionSystem.js';
+import { PlayerRespawnSystem } from './systems/PlayerRespawnSystem.js';
+import { WeaponFireSystem } from './systems/WeaponFireSystem.js';
+import { HitResolverSystem } from './systems/HitResolverSystem.js';
+import { ProximityFuzeSystem } from './systems/ProximityFuzeSystem.js';
+import { BoundingVolumeUpdateSystem } from './systems/BoundingVolumeUpdateSystem.js';
+import { LifetimeSystem } from './systems/LifetimeSystem.js';
+import { DustEffectSystem } from './systems/DustEffectSystem.js';
+import { DebugSystem } from './systems/DebugSystem.js';
+
+
+const SIMULATION_RATE = 60;
+const TIME_STEP = 1.0 / SIMULATION_RATE;
 
 export class Game {
-    constructor(dataManager) {
-        this.dataManager = dataManager;
+    constructor() {
+        this.dataManager = serviceLocator.get('DataManager');
         
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20000);
         this.camera.layers.enableAll();
         
         this.clock = new THREE.Clock();
+        this.accumulator = 0.0;
 
-        this.initHTML();
-        // --- REFACTORED: Renderer setup is now handled by its own manager ---
-        this.rendererManager = new RendererManager(this.scene, this.camera, document.body);
+        this.renderInterval = 1.0 / 60.0;
+        this.renderAccumulator = 0;
+
+        this.ecsWorld = new World();
+        serviceLocator.register('ECSWorld', this.ecsWorld);
+
+        this.playerEntityId = null;
+
+        this.initManagers();
+        this.initECSSystems();
         
         this.initEnvironment();
-        this.initManagers();
-        this.initWorld();
+        this.worldManager.initWorld();
+        this.gameDirector.init();
         this.initPlayer();
         this.initEventListeners();
     }
-    
-    initHTML() {
-        // This method now only creates the DOM elements for the UI.
-        // The main canvas is appended by the RendererManager.
-        const uiHTML = `
-            <div id="damage-overlay"></div>
-            <div id="hud"><canvas id="hud-canvas"></canvas></div>
-            <div id="dock-prompt">Press 'G' to Dock</div>
-            <div id="station-menu">
-                <h2>Station Services</h2>
-                <button id="btn-repair">Repair Hull <span class="cost" id="cost-repair">0 CR</span></button>
-                <button id="btn-rearm">Rearm <span class="cost" id="cost-rearm">0 CR</span></button>
-                <button id="btn-shipyard">Shipyard</button>
-                <button id="btn-undock">Undock</button>
-            </div>
-            <div id="shipyard-menu">
-                <h2>Shipyard</h2>
-                <ul id="shipyard-list"></ul>
-                <button id="btn-shipyard-back" style="margin-top: 15px;">Back to Services</button>
-            </div>
-            <div id="scanner-container"></div>
-            <div id="nav-pointer">[+]</div>
-            <div id="console-container">
-                <ul id="console-output"></ul>
-                <div id="console-input-wrapper">
-                    <span>></span>
-                    <input type="text" id="console-input" autocomplete="off" />
-                </div>
-            </div>
-            <div id="mouse-cursor"></div>
-        `;
-        document.body.insertAdjacentHTML('beforeend', uiHTML);
-    }
 
     initEnvironment() {
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.15)); 
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.15));
 
-        const starGeometry = new THREE.BufferGeometry();
-        const starVertices = [];
-        for (let i = 0; i < 5000; i++) {
-            starVertices.push(
-                THREE.MathUtils.randFloatSpread(18000),
-                THREE.MathUtils.randFloatSpread(18000),
-                THREE.MathUtils.randFloatSpread(18000)
-            );
-        }
-        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 4.0, sizeAttenuation: false });
-        this.stars = new THREE.Points(starGeometry, starMaterial);
-        this.scene.add(this.stars);
+        const cubeTextureLoader = new THREE.CubeTextureLoader();
+        cubeTextureLoader.setPath('assets/skybox/');
+        const textureCube = cubeTextureLoader.load([
+            'px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'
+        ]);
+        this.scene.background = textureCube;
 
-        const dustGeometry = new THREE.BufferGeometry();
-        const dustVertices = [];
-        for (let i = 0; i < 1000; i++) { 
-            dustVertices.push(
-                THREE.MathUtils.randFloatSpread(1200),
-                THREE.MathUtils.randFloatSpread(1200),
-                THREE.MathUtils.randFloatSpread(1200)
-            );
-        }
-        dustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(dustVertices, 3));
-        const dustMaterial = new THREE.PointsMaterial({ 
-            color: 0xaaaaaa, 
-            size: 0.5, 
-            transparent: true, 
-            opacity: 0.7,
-            sizeAttenuation: false 
-        });
-        this.dust = new THREE.Points(dustGeometry, dustMaterial);
-        this.scene.add(this.dust);
+        const effectEntity = this.ecsWorld.createEntity();
+        this.ecsWorld.addComponent(effectEntity, new DustEffectComponent());
     }
 
     initManagers() {
-        this.gameStateManager = new GameStateManager(this.dataManager);
-        this.projectileManager = new ProjectileManager(this.scene);
-        this.uiManager = new UIManager(this.gameStateManager, this.dock.bind(this), this.undock.bind(this), this.purchaseShip.bind(this), this.dataManager);
-        this.effectsManager = new EffectsManager(this.scene, this.uiManager);
-        this.worldManager = new WorldManager(this.scene, this.projectileManager, this.effectsManager, this.gameStateManager, this.dataManager);
-        this.scanner = new Scanner();
+        serviceLocator.register('Scene', this.scene);
+        serviceLocator.register('Camera', this.camera);
+        serviceLocator.register('RendererManager', new RendererManager(this.scene, this.camera, document.body));
+        serviceLocator.register('NotificationManager', new NotificationManager());
+        serviceLocator.register('eventBus', eventBus);
+        serviceLocator.register('GameStateManager', new GameStateManager());
         
-        this.consoleManager = new ConsoleManager(this.gameStateManager, this.worldManager);
-        window.log = this.consoleManager.log.bind(this.consoleManager);
+        serviceLocator.register('EntityFactory', new EntityAssembler());
+        
+        this.damageSystem = new DamageSystem(this.ecsWorld);
+        
+        this.worldManager = new WorldManager();
+        serviceLocator.register('WorldManager', this.worldManager);
+        this.gameDirector = new GameDirector();
+        serviceLocator.register('GameDirector', this.gameDirector);
+        
+        serviceLocator.register('Scanner', new Scanner());
+
+        serviceLocator.register('HUDManager', new HUDManager());
+        serviceLocator.register('StationUIManager', new StationUIManager());
+        serviceLocator.register('WorldUIManager', new WorldUIManager());
+        
+        this.uiManager = new UIManager();
+        serviceLocator.register('UIManager', this.uiManager);
+
+        serviceLocator.register('ConsoleManager', new ConsoleManager());
     }
 
-    initWorld() {
-        this.worldManager.initWorld();
-        this.spaceStation = this.worldManager.spaceStation;
+    initECSSystems() {
+        // --- FINAL CORRECT SYSTEM ORDER ---
+
+        // 1. Input & AI: Decide actions for this frame.
+        this.ecsWorld.addSystem(new InputSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new AISystem(this.ecsWorld));
+        
+        // 2. Firing: Process actions and create projectiles/events.
+        this.ecsWorld.addSystem(new WeaponFireSystem(this.ecsWorld));
+
+        // 3. Movement & Physics: Update all logical positions and rotations.
+        this.ecsWorld.addSystem(new MissileSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new MovementSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new StationSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new LifetimeSystem(this.ecsWorld));
+
+        // 4. Bounding Volumes: Update all collision spheres based on new logical positions.
+        this.ecsWorld.addSystem(new BoundingVolumeUpdateSystem(this.ecsWorld));
+
+        // 5. Collision Detection & Resolution: Check for hits using up-to-date volumes.
+        this.ecsWorld.addSystem(new ProximityFuzeSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new CollisionSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new HitResolverSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(this.damageSystem);
+
+        // 6. State & Item Management: Handle consequences of collisions.
+        this.ecsWorld.addSystem(new LootSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new RegenerationSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new ItemCollectionSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new PlayerRespawnSystem(this.ecsWorld));
+        
+        // 7. Rendering & Effects: Update visuals based on the final state of the frame.
+        this.ecsWorld.addSystem(new RenderSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new InstancedRenderSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new EngineTrailSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new EffectSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new HealthBarSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new DustEffectSystem(this.ecsWorld));
+        this.ecsWorld.addSystem(new DebugSystem(this.ecsWorld)); // ADDED: Debug System
+
+        // 8. Cleanup (runs last): Remove all entities marked for deletion.
+        this.ecsWorld.addSystem(new CleanupSystem(this.ecsWorld));
     }
 
     initPlayer() {
-        this.playerShip = this.worldManager.spawnPlayer();
-        this.playerController = new PlayerController(
-            this.playerShip,
-            this.camera,
-            this.projectileManager,
-            this.gameStateManager,
-            this.scanner,
-            this.worldManager
-        );
-        this.uiManager.setPlayerShip(this.playerShip);
-        this.scanner.setNavTarget(this.spaceStation);
+        this.playerEntityId = this.gameDirector.spawnPlayer();
+        this.cameraController = new CameraController(this.camera, this.playerEntityId);
+        eventBus.emit('player_ship_updated', this.playerEntityId);
     }
 
     initEventListeners() {
-        // --- REFACTORED: This listener now only handles UI canvas resizing. ---
-        // The main 3D canvas is handled by RendererManager.
-        window.addEventListener('resize', () => {
-            if (this.uiManager && this.uiManager.hudCanvas) {
-                this.uiManager.hudCanvas.width = this.uiManager.hudCanvas.clientWidth * window.devicePixelRatio;
-                this.uiManager.hudCanvas.height = this.uiManager.hudCanvas.clientHeight * window.devicePixelRatio;
-                this.uiManager.hudCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-            }
-        });
+        window.addEventListener('resize', () => eventBus.emit('window_resized'));
+        eventBus.on('purchase_ship_request', (shipId) => this.purchaseShip(shipId));
+        eventBus.on('player_respawn_request', () => this.handlePlayerRespawn());
     }
 
-    dock() {
-        this.gameStateManager.setDocked(true, this.playerShip);
-        this.playerShip.velocity.set(0, 0, 0);
-        this.uiManager.showStationMenu();
-    }
+    handlePlayerRespawn() {
+        const gameStateManager = serviceLocator.get('GameStateManager');
+        const dataManager = serviceLocator.get('DataManager');
+        const shipData = dataManager.getShipData(gameStateManager.playerState.shipId);
 
-    undock() {
-        this.gameStateManager.setDocked(false, this.playerShip);
-        this.uiManager.hideStationUI();
+        // FIX: Reset the hull in the persistent state to its maximum before spawning.
+        if (shipData) {
+            gameStateManager.playerState.hull = shipData.hull;
+        }
+
+        // Now, spawn the player. The GameDirector will use the corrected state.
+        this.playerEntityId = this.gameDirector.spawnPlayer();
+        this.cameraController.setTarget(this.playerEntityId);
+        eventBus.emit('player_ship_updated', this.playerEntityId);
     }
 
     purchaseShip(shipId) {
+        const gameStateManager = serviceLocator.get('GameStateManager');
         const shipData = this.dataManager.getShipData(shipId);
         const cost = shipData?.cost ?? 9999999;
-        if (this.gameStateManager.removeCredits(cost)) {
-            this.gameStateManager.playerState.shipId = shipId;
-            this.gameStateManager.playerState.hull = shipData.hull;
-            this.gameStateManager.playerState.ammo = { ...shipData.ammo };
-            this.gameStateManager.playerState.cargo = {};
-            this.gameStateManager.saveState();
-
-            const newPlayerShip = this.worldManager.spawnPlayer();
-            this.playerShip = newPlayerShip;
-            this.playerController.ship = newPlayerShip;
-            this.uiManager.setPlayerShip(newPlayerShip);
+        
+        if (gameStateManager.removeCredits(cost)) {
+            gameStateManager.playerState.shipId = shipId;
+            gameStateManager.playerState.hull = shipData.hull;
+            gameStateManager.playerState.ammo = { ...shipData.ammo };
+            gameStateManager.playerState.cargo = {};
+            gameStateManager.saveState();
+            this.handlePlayerRespawn();
+            eventBus.emit('notification', { text: `Purchased: ${shipData.name}`, type: 'success' });
             return true;
         }
         return false;
     }
 
-    start() {
-        this.animate();
-    }
-
+    start() { this.animate(); }
+    
     animate() {
         requestAnimationFrame(this.animate.bind(this));
-        const delta = this.clock.getDelta();
-
-        if (this.gameStateManager.isPlayerControlEnabled) {
-            this.playerController.update(delta);
-        }
-
-        const worldUpdateResult = this.worldManager.update(delta);
         
-        if (worldUpdateResult.needsRespawn) {
-            const newPlayerShip = this.worldManager.spawnPlayer();
-            this.playerShip = newPlayerShip;
-            this.playerController.ship = newPlayerShip;
-            this.uiManager.setPlayerShip(newPlayerShip);
-        }
+        const delta = this.clock.getDelta();
+        this.renderAccumulator += delta;
+        if (this.renderAccumulator < this.renderInterval) { return; }
+        
+        const frameTime = this.renderAccumulator;
+        this.accumulator += frameTime;
+        this.renderAccumulator = 0;
+        
+        const gameStateManager = serviceLocator.get('GameStateManager');
+        const notificationManager = serviceLocator.get('NotificationManager');
+        const rendererManager = serviceLocator.get('RendererManager');
+        const scanner = serviceLocator.get('Scanner');
+        
+        while (this.accumulator >= TIME_STEP) {
+            const stepDelta = TIME_STEP;
+            notificationManager.update(stepDelta);
+            this.cameraController.update(stepDelta);
+            this.gameDirector.update(stepDelta);
+            this.worldManager.update(stepDelta);
+            this.ecsWorld.update(stepDelta);
+            
+            const playerHealth = this.ecsWorld.getComponent(this.playerEntityId, 'HealthComponent');
+            const playerIsAlive = playerHealth && !playerHealth.isDestroyed;
 
-        this.effectsManager.update(delta);
-        if (this.playerShip && !this.playerShip.isDestroyed) {
-             this.scanner.update(this.playerShip, this.worldManager.allShips);
-        }
-
-        if (this.dust) {
-            this.dust.position.copy(this.camera.position);
-        }
-
-        this.uiManager.updateHud();
-        this.uiManager.updateScanner(this.scanner, this.camera);
-
-        if (!this.gameStateManager.isDocked) {
-            const isDockingPossible = this.spaceStation.canDock(this.playerShip);
-            this.uiManager.toggleDockingPrompt(isDockingPossible);
-            if (isDockingPossible && keyState['g']) {
-                keyState['g'] = false;
-                this.dock();
+            if (playerIsAlive) {
+                const shipIds = this.ecsWorld.query(['ShipTag']);
+                const asteroidIds = this.ecsWorld.query(['AsteroidTag']);
+                const stationIds = this.ecsWorld.query(['StationComponent']);
+                const collectibleIds = this.ecsWorld.query(['CollectibleComponent']);
+                const targetables = [...shipIds, ...asteroidIds, ...stationIds, ...collectibleIds];
+                scanner.update(this.playerEntityId, targetables);
             }
+            
+            // FIX: Removed direct input handling. This is now managed by InputSystem.
+            this.accumulator -= TIME_STEP;
         }
-
-        // --- REFACTORED: Single call to the renderer manager ---
-        this.rendererManager.render(delta);
+        
+        this.uiManager.update(frameTime);
+        rendererManager.render(frameTime);
     }
 }

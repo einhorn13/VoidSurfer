@@ -1,10 +1,13 @@
 // src/ConsoleManager.js
 import * as THREE from 'three';
+import { serviceLocator } from './ServiceLocator.js';
+import { eventBus } from './EventBus.js';
 
 export class ConsoleManager {
-    constructor(gameStateManager, worldManager) {
-        this.gameStateManager = gameStateManager;
-        this.worldManager = worldManager;
+    constructor() {
+        this.gameStateManager = serviceLocator.get('GameStateManager');
+        this.worldManager = serviceLocator.get('WorldManager');
+        this.ecsWorld = serviceLocator.get('ECSWorld');
         this.isOpen = false;
 
         this.container = document.getElementById('console-container');
@@ -71,15 +74,21 @@ export class ConsoleManager {
                     this.log('Error: Ship ID is required.', 'red');
                     return;
                 }
-                const playerPos = this.worldManager.playerShip.mesh.position;
+                const playerIds = this.ecsWorld.query(['PlayerControlledComponent']);
+                if (playerIds.length === 0) {
+                    this.log('Error: Player not found.', 'red');
+                    return;
+                }
+                const playerTransform = this.ecsWorld.getComponent(playerIds[0], 'TransformComponent');
+
                 for (let i = 0; i < count; i++) {
                     const offset = new THREE.Vector3(
                         (Math.random() - 0.5) * 200,
                         (Math.random() - 0.5) * 200,
                         -150 - (Math.random() * 100)
                     );
-                    const spawnPos = playerPos.clone().add(offset);
-                    this.worldManager.createShip(shipId, { position: spawnPos, faction: 'PIRATE_FACTION' });
+                    const spawnPos = playerTransform.position.clone().add(offset);
+                    serviceLocator.get('GameDirector').createShip(shipId.toUpperCase(), { position: spawnPos, faction: 'PIRATE_FACTION' });
                 }
                 this.log(`Spawned ${count} of ${shipId}.`, 'yellow');
             }
@@ -89,13 +98,59 @@ export class ConsoleManager {
             description: 'Destroys all non-player ships.',
             handler: () => {
                 let count = 0;
-                this.worldManager.allShips.forEach(ship => {
-                    if (!ship.isPlayer && !ship.isDestroyed) {
-                        ship.takeDamage(ship.hull + ship.shield + 1);
+                const shipIds = this.ecsWorld.query(['ShipTag']);
+                shipIds.forEach(id => {
+                    if (this.ecsWorld.getComponent(id, 'PlayerControlledComponent')) return;
+                    
+                    const health = this.ecsWorld.getComponent(id, 'HealthComponent');
+                    if (health && !health.isDestroyed) {
+                        health.isDestroyed = true;
                         count++;
                     }
                 });
                 this.log(`Destroyed ${count} ships.`, 'yellow');
+            }
+        });
+
+        this.commands.set('arcade', {
+            description: 'Toggles arcade mode. Usage: arcade <on|off>',
+            handler: (args) => {
+                const setting = args[0]?.toLowerCase();
+                if (setting === 'on') {
+                    this.gameStateManager.setArcadeMode(true);
+                } else if (setting === 'off') {
+                    this.gameStateManager.setArcadeMode(false);
+                } else if (!setting) {
+                    const currentState = this.gameStateManager.isArcadeMode() ? 'ON' : 'OFF';
+                    this.log(`Arcade Mode is currently: ${currentState}`);
+                } else {
+                    this.log('Error: Invalid argument. Use "on" or "off".', 'red');
+                }
+            }
+        });
+
+        this.commands.set('debug', {
+            description: 'Toggles debug visualizations. Usage: debug <on|off>',
+            handler: (args) => {
+                const debugSystem = this.ecsWorld.systems.find(sys => sys.constructor.name === 'DebugSystem');
+                if (!debugSystem) {
+                    this.log('Error: DebugSystem not found.', 'red');
+                    return;
+                }
+                const setting = args[0]?.toLowerCase();
+                
+                if (setting === 'on') {
+                    debugSystem.toggle(true);
+                    this.log(`Collision debug visualization is now ON.`, 'yellow');
+                } else if (setting === 'off') {
+                    debugSystem.toggle(false);
+                    this.log(`Collision debug visualization is now OFF.`, 'yellow');
+                } else if (!setting) {
+                    const currentState = debugSystem.isEnabled ? 'ON' : 'OFF';
+                    this.log(`Collision debug visualization is currently: ${currentState}`);
+                } else {
+                    this.log('Error: Invalid argument. Use "on" or "off".', 'red');
+                }
             }
         });
     }

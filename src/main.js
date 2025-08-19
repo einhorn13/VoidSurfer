@@ -1,17 +1,22 @@
 // src/main.js
 import { Game } from './Game.js';
 import { DataManager } from './DataManager.js';
+import { serviceLocator } from './ServiceLocator.js';
 
 async function main() {
-    // Show a simple loading message
-    document.body.innerHTML = '<h1 style="color: #0f0; text-align: center; margin-top: 20%;">Loading Assets...</h1>';
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const progressBar = document.getElementById('loading-progress-bar');
 
     const dataManager = new DataManager();
-    await dataManager.loadData();
+    serviceLocator.register('DataManager', dataManager);
     
-    // Clear loading message and start the game
-    document.body.innerHTML = ''; 
-    const game = new Game(dataManager);
+    await dataManager.loadData((progress) => {
+        progressBar.style.width = `${progress * 100}%`;
+    });
+    
+    loadingOverlay.style.display = 'none';
+
+    const game = new Game();
     game.start();
 }
 

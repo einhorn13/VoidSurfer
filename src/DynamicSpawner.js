@@ -1,10 +1,10 @@
-// src/DynamicSpawner.js
 import * as THREE from 'three';
 
 export class DynamicSpawner {
     constructor(worldManager, spawnConfig) {
         this.worldManager = worldManager;
-        this.config = spawnConfig; // Receive config from WorldManager
+        this.ecsWorld = worldManager.ecsWorld; // Get access to ECS world
+        this.config = spawnConfig;
         if (!this.config) {
             throw new Error("Spawn config not provided to DynamicSpawner!");
         }
@@ -13,41 +13,58 @@ export class DynamicSpawner {
         this.factionCounts = {};
     }
 
-    update(playerPos, allShips) {
-        // --- Despawn distant ships ---
-        allShips.forEach(ship => {
-            if (ship.isPlayer) return;
-            const distance = ship.mesh.position.distanceTo(playerPos);
+    update(delta, playerEntityId) {
+        if (playerEntityId === null) return;
+        
+        const playerTransform = this.ecsWorld.getComponent(playerEntityId, 'TransformComponent');
+        if (!playerTransform) return;
+        const playerPos = playerTransform.position;
+        
+        const allShipIds = this.ecsWorld.query(['ShipTag']);
+
+        allShipIds.forEach(shipId => {
+            const isPlayer = this.ecsWorld.getComponent(shipId, 'PlayerControlledComponent');
+            if (isPlayer) return;
+
+            const shipTransform = this.ecsWorld.getComponent(shipId, 'TransformComponent');
+            if (!shipTransform) return;
+
+            const distance = shipTransform.position.distanceTo(playerPos);
             if (distance > this.config.despawnDistance) {
-                this.worldManager.despawnShip(ship);
+                // Mark for cleanup instead of direct removal
+                const health = this.ecsWorld.getComponent(shipId, 'HealthComponent');
+                if (health) health.isDestroyed = true;
             }
         });
 
-        // --- Spawn new ships ---
-        this.spawnTimer -= 1/60; // Assuming 60fps, delta would be better
+        this.spawnTimer -= delta;
         if (this.spawnTimer > 0) return;
         this.spawnTimer = this.config.spawnInterval;
 
-        this.recountFactions(allShips);
+        this.recountFactions(allShipIds);
 
         for (const [faction, limit] of Object.entries(this.config.factionLimits)) {
             const currentCount = this.factionCounts[faction] || 0;
             if (currentCount < limit) {
-                this.spawnShipForFaction(faction, playerPos);
-                break; // Spawn one ship per interval to avoid bursts
+                this.spawnShipForFaction(faction, playerTransform);
+                break; 
             }
         }
     }
 
-    recountFactions(allShips) {
+    recountFactions(allShipIds) {
         this.factionCounts = {};
-        allShips.forEach(ship => {
-            if (ship.isPlayer) return;
-            this.factionCounts[ship.faction] = (this.factionCounts[ship.faction] || 0) + 1;
+        allShipIds.forEach(shipId => {
+            const isPlayer = this.ecsWorld.getComponent(shipId, 'PlayerControlledComponent');
+            if (isPlayer) return;
+
+            const factionComp = this.ecsWorld.getComponent(shipId, 'FactionComponent');
+            const faction = factionComp.name;
+            this.factionCounts[faction] = (this.factionCounts[faction] || 0) + 1;
         });
     }
 
-    spawnShipForFaction(faction, playerPos) {
+    spawnShipForFaction(faction, playerTransform) {
         const possibleShips = this.config.shipsByFaction[faction];
         if (!possibleShips || possibleShips.length === 0) return;
 
@@ -58,8 +75,9 @@ export class DynamicSpawner {
             Math.random() - 0.5,
             Math.random() - 0.5
         ).normalize();
+
         const spawnDistance = THREE.MathUtils.randFloat(this.config.spawnDistance.min, this.config.spawnDistance.max);
-        const position = playerPos.clone().add(spawnDirection.multiplyScalar(spawnDistance));
+        const position = playerTransform.position.clone().add(spawnDirection.multiplyScalar(spawnDistance));
 
         const options = { position, faction };
         

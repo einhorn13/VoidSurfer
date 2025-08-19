@@ -1,6 +1,5 @@
 // src/DataManager.js
 import * as THREE from 'three';
-// --- FIX: Import GLTFLoader from its full CDN URL ---
 import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 
 export class DataManager {
@@ -18,21 +17,20 @@ export class DataManager {
         this.loader = new GLTFLoader();
     }
 
-    async loadData() {
+    async loadData(onProgress) {
         console.log("Loading asset manifest...");
         const manifestResponse = await fetch('assets/assets.json');
         const manifest = await manifestResponse.json();
-
-        console.log("Loading JSON data...");
-        const jsonPromises = manifest.map(path => fetch(`assets/${path}`).then(res => res.json()));
-        const jsonDataArray = await Promise.all(jsonPromises);
+        const totalAssets = manifest.length;
+        let loadedAssets = 0;
 
         const getDir = (path) => path.substring(0, path.indexOf('/'));
 
-        jsonDataArray.forEach((data, index) => {
-            const path = manifest[index];
+        const loadAsset = async (path) => {
+            const response = await fetch(`assets/${path}`);
+            const data = await response.json();
+            
             const dir = getDir(path);
-
             const store = (map) => map.set(data.id, data);
 
             switch (dir) {
@@ -45,7 +43,15 @@ export class DataManager {
                 case 'config': this.configs.set(path.split('/').pop().replace('.json', ''), data); break;
                 default: console.warn(`Unknown data type for path: ${path}`);
             }
-        });
+
+            loadedAssets++;
+            if (onProgress) {
+                onProgress(loadedAssets / totalAssets);
+            }
+        };
+        
+        const allPromises = manifest.map(path => loadAsset(path));
+        await Promise.all(allPromises);
         
         this.miscData.set('AMMO_DATA', {
             PROJECTILE: { name: 'Cannon Rounds' },

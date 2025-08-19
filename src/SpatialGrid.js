@@ -1,7 +1,6 @@
 // src/SpatialGrid.js
 import * as THREE from 'three';
 
-// A simple 3D spatial grid for broad-phase collision detection.
 export class SpatialGrid {
     constructor(worldSize = 8000, divisions = 80) {
         this.worldSize = worldSize;
@@ -9,7 +8,7 @@ export class SpatialGrid {
         this.cellSize = worldSize / divisions;
         this.halfWorldSize = worldSize / 2;
         this.grid = new Map();
-        this.queryIds = new Set(); // Used to avoid returning duplicate objects in a query
+        this.queryIds = new Set();
     }
 
     _getGridCoords(position) {
@@ -23,16 +22,16 @@ export class SpatialGrid {
         return `${coords.x},${coords.y},${coords.z}`;
     }
 
-    // Clears the grid for the new frame.
     clear() {
         this.grid.clear();
     }
 
-    // Registers an object (like a ship or asteroid) into the grid.
     register(object) {
-        // We use the object's boundingBox for registration
-        const min = this._getGridCoords(object.boundingBox.min);
-        const max = this._getGridCoords(object.boundingBox.max);
+        const boundingBox = object.collision ? object.collision.boundingBox : object.boundingBox;
+        if (!boundingBox || boundingBox.isEmpty()) return;
+
+        const min = this._getGridCoords(boundingBox.min);
+        const max = this._getGridCoords(boundingBox.max);
 
         for (let x = min.x; x <= max.x; x++) {
             for (let y = min.y; y <= max.y; y++) {
@@ -47,13 +46,15 @@ export class SpatialGrid {
         }
     }
 
-    // Retrieves all unique objects that are in the same cell(s) as the given object.
     getNearby(object) {
         this.queryIds.clear();
         const results = [];
         
-        const min = this._getGridCoords(object.boundingBox.min);
-        const max = this._getGridCoords(object.boundingBox.max);
+        const boundingBox = object.collision ? object.collision.boundingBox : object.boundingBox;
+        if (!boundingBox || boundingBox.isEmpty()) return results;
+
+        const min = this._getGridCoords(boundingBox.min);
+        const max = this._getGridCoords(boundingBox.max);
         
         for (let x = min.x; x <= max.x; x++) {
             for (let y = min.y; y <= max.y; y++) {
@@ -61,10 +62,18 @@ export class SpatialGrid {
                     const key = this._getCellKey({ x, y, z });
                     if (this.grid.has(key)) {
                         for (const cellObject of this.grid.get(key)) {
-                            // Use a Set to ensure we don't add the same object multiple times
-                            if (!this.queryIds.has(cellObject.mesh.id)) {
+                            let uniqueId;
+                            if (cellObject.entityId !== undefined) {
+                                uniqueId = `e-${cellObject.entityId}`;
+                            } else if (cellObject.instanceId !== undefined) {
+                                uniqueId = `${cellObject.typeId}-${cellObject.instanceId}`;
+                            } else {
+                                continue;
+                            }
+
+                            if (!this.queryIds.has(uniqueId)) {
                                 results.push(cellObject);
-                                this.queryIds.add(cellObject.mesh.id);
+                                this.queryIds.add(uniqueId);
                             }
                         }
                     }

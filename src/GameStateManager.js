@@ -1,16 +1,46 @@
 // src/GameStateManager.js
+import { serviceLocator } from './ServiceLocator.js';
+import { eventBus } from './EventBus.js';
 
 const DEFAULT_SHIP_ID = 'VIPER_MK2';
 
+const GAME_STATES = {
+    PLAYING: 'PLAYING',
+    DOCKED: 'DOCKED',
+    CONSOLE: 'CONSOLE',
+    PAUSED: 'PAUSED'
+};
+
 export class GameStateManager {
-    constructor(dataManager) {
-        this.dataManager = dataManager;
+    constructor() {
+        this.dataManager = serviceLocator.get('DataManager');
+        this.ecsWorld = serviceLocator.get('ECSWorld'); // Get ECS world
         this.playerState = {};
-        this.isDocked = false;
-        this.isConsoleOpen = false;
-        this.isPlayerControlEnabled = true;
+        this.currentState = GAME_STATES.PLAYING;
+
+        this.settings = {
+            arcadeMode: true 
+        };
 
         this.loadState();
+        this._addEventListeners();
+    }
+
+    _addEventListeners() {
+        eventBus.on('dock_request', () => this.setState(GAME_STATES.DOCKED));
+        eventBus.on('undock_request', () => this.setState(GAME_STATES.PLAYING));
+    }
+
+    setArcadeMode(isEnabled) {
+        this.settings.arcadeMode = isEnabled;
+        eventBus.emit('notification', { 
+            text: `Arcade Mode: ${isEnabled ? 'ON' : 'OFF'}`, 
+            type: 'info' 
+        });
+    }
+
+    isArcadeMode() {
+        return this.settings.arcadeMode;
     }
 
     loadState() {
@@ -32,47 +62,62 @@ export class GameStateManager {
         };
         this.saveState();
     }
+
+    setState(newState) {
+        if (this.currentState === newState || !Object.values(GAME_STATES).includes(newState)) {
+            return;
+        }
+        this.currentState = newState;
+        console.log(`Game state changed to: ${this.currentState}`);
+        eventBus.emit('game_state_changed', this.currentState);
+    }
     
-    _updateControlState() {
-        this.isPlayerControlEnabled = !this.isDocked && !this.isConsoleOpen;
+    getCurrentState() {
+        return this.currentState;
     }
-
+    
+    isPlayerControlEnabled() {
+        return this.currentState === GAME_STATES.PLAYING;
+    }
+    
     setConsoleOpen(isOpen) {
-        this.isConsoleOpen = isOpen;
-        this._updateControlState();
+        if (isOpen) {
+            this.setState(GAME_STATES.CONSOLE);
+        } else if (this.currentState === GAME_STATES.CONSOLE) {
+            this.setState(GAME_STATES.PLAYING);
+        }
     }
 
-    updatePlayerShipState(playerShip) {
-        if (!playerShip || playerShip.isDestroyed) {
+    updatePlayerShipState(playerEntityId) {
+        const health = this.ecsWorld.getComponent(playerEntityId, 'HealthComponent');
+        const cargo = this.ecsWorld.getComponent(playerEntityId, 'CargoComponent');
+        const ammo = this.ecsWorld.getComponent(playerEntityId, 'AmmoComponent');
+        const staticData = this.ecsWorld.getComponent(playerEntityId, 'StaticDataComponent');
+
+        if (!health || !cargo || !ammo || !staticData) {
             this.resetPlayerState();
             return;
         }
-        this.playerState.shipId = playerShip.id;
-        this.playerState.hull = playerShip.hull;
-        this.playerState.cargo = Object.fromEntries(playerShip.cargoHold);
-        this.playerState.ammo = Object.fromEntries(playerShip.ammo);
+        this.playerState.shipId = staticData.data.id;
+        this.playerState.hull = health.hull.current;
+        this.playerState.cargo = Object.fromEntries(cargo.items);
+        this.playerState.ammo = Object.fromEntries(ammo.ammo);
         this.saveState();
     }
 
     addCredits(amount) {
         this.playerState.credits += amount;
         this.saveState();
+        eventBus.emit('player_stats_updated', this.playerState);
     }
 
     removeCredits(amount) {
         if (this.playerState.credits >= amount) {
             this.playerState.credits -= amount;
             this.saveState();
+            eventBus.emit('player_stats_updated', this.playerState);
             return true;
         }
         return false;
-    }
-
-    setDocked(isDocked, playerShip) {
-        this.isDocked = isDocked;
-        this._updateControlState();
-        if (playerShip) {
-            this.updatePlayerShipState(playerShip);
-        }
     }
 }

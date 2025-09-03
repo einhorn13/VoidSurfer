@@ -1,6 +1,7 @@
 {
     "id": "BASIC_SHIELD",
     "name": "Basic Shield",
+    "cost": 1000,
     "capacity": 100,
     "regenRate": 4,
     "mass": 5

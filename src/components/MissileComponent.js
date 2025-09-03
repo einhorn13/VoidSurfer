@@ -1,4 +1,3 @@
-// src/components/MissileComponent.js
 import { Component } from '../ecs/Component.js';
 
 export class MissileComponent extends Component {

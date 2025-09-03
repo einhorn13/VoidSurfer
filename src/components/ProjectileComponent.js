@@ -1,4 +1,3 @@
-// src/components/ProjectileComponent.js
 import { Component } from '../ecs/Component.js';
 
 /**
@@ -11,6 +10,6 @@ export class ProjectileComponent extends Component {
         this.faction = faction;
         this.originId = originId;
         this.weaponData = weaponData;
-        this.pierceLeft = weaponData.pierce || 0;
+        this.pierceLeft = weaponData.pierce ?? 0;
     }
 }

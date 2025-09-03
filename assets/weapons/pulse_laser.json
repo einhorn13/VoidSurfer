@@ -1,7 +1,9 @@
 {
     "id": "PULSE_LASER",
     "name": "Pulse Laser",
+    "cost": 1000,
     "type": "LASER",
+    "category": "PRIMARY",
     "slotType": "LIGHT",
     "damage": 10,
     "energyCost": 6,

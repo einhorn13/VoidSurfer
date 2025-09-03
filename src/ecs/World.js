@@ -1,7 +1,32 @@
-// src/ecs/World.js
+class EntityBuilder {
+    constructor(world, entityId) {
+        this.world = world;
+        this.entityId = entityId;
+    }
+
+    /**
+     * Adds a component to the entity being built.
+     * @param {Component} component The component instance to add.
+     * @returns {EntityBuilder} The builder instance for chaining.
+     */
+    with(component) {
+        this.world.addComponent(this.entityId, component);
+        return this;
+    }
+
+    /**
+     * Finalizes the entity and returns its ID.
+     * @returns {number} The ID of the created entity.
+     */
+    build() {
+        return this.entityId;
+    }
+}
+
+
 export class World {
     constructor() {
-        this.entityIds = new Set(); // Changed from Map to Set
+        this.entityIds = new Set();
         this.components = new Map();
         this.systems = [];
         this.nextEntityId = 0;
@@ -11,7 +36,7 @@ export class World {
     createEntity() {
         const entityId = this.nextEntityId++;
         this.entityIds.add(entityId);
-        return entityId;
+        return new EntityBuilder(this, entityId);
     }
 
     hasEntity(entityId) {
@@ -31,13 +56,18 @@ export class World {
         return componentMap ? componentMap.get(entityId) : undefined;
     }
 
-
+    removeComponent(entityId, componentName) {
+        const componentMap = this.components.get(componentName);
+        if (componentMap) {
+            componentMap.delete(entityId);
+        }
+    }
 
     removeEntity(entityId) {
         for (const componentMap of this.components.values()) {
             componentMap.delete(entityId);
         }
-        this.entityIds.delete(entityId); // Changed from this.entities.delete
+        this.entityIds.delete(entityId);
     }
 
     addSystem(system) {
@@ -86,7 +116,6 @@ export class World {
         for (const system of this.systems) {
             system.update(delta);
         }
-        // Clear events AFTER all systems have had a chance to process them for the current frame.
         this.clearEvents();
     }
 }

@@ -10,9 +10,11 @@
     "turnSpeed": 0.5,
     "aiBehavior": "trader",
     "proceduralModel": {
-        "color": "8888ff",
+        "color": "a0a0c0",
         "components": [
-            { "type": "box", "size": [6, 4, 12], "pos": [0, 0, 0] }
+            { "type": "box", "size": [2.5, 2.5, 3], "pos": [2.5, 0, -7] },
+            { "type": "box", "size": [6, 4, 12], "pos": [0, 0, 0] },
+            { "type": "box", "size": [8, 1, 2], "pos": [0, -1.5, 5] }
         ]
     },
     "drops": { "credits": [10, 50] },

@@ -1,6 +1,7 @@
 {
     "id": "HEAVY_SHIELD",
     "name": "Heavy Shield",
+    "cost": 4500,
     "capacity": 200,
     "regenRate": 3,
     "mass": 10

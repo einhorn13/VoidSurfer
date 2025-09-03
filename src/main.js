@@ -1,23 +1,14 @@
 // src/main.js
-import { Game } from './Game.js';
-import { DataManager } from './DataManager.js';
-import { serviceLocator } from './ServiceLocator.js';
+import { Application } from './Application.js';
 
-async function main() {
-    const loadingOverlay = document.getElementById('loading-overlay');
-    const progressBar = document.getElementById('loading-progress-bar');
-
-    const dataManager = new DataManager();
-    serviceLocator.register('DataManager', dataManager);
-    
-    await dataManager.loadData((progress) => {
-        progressBar.style.width = `${progress * 100}%`;
-    });
-    
-    loadingOverlay.style.display = 'none';
-
-    const game = new Game();
-    game.start();
-}
-
-window.addEventListener('DOMContentLoaded', main);
+// Self-invoking async function to create a private scope and handle async operations
+(async function main() {
+    try {
+        const app = new Application();
+        await app.init();
+        app.start();
+    } catch (error) {
+        console.error("Halting application initialization due to a critical error:", error);
+        // A loading manager (if used inside Application) or a simple DOM element could display this error to the user.
+    }
+})();

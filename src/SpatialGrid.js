@@ -26,12 +26,16 @@ export class SpatialGrid {
         this.grid.clear();
     }
 
-    register(object) {
+    // UPDATED: Now accepts a category for pre-filtering queries.
+    register(object, category = 'other') {
         const boundingBox = object.collision ? object.collision.boundingBox : object.boundingBox;
         if (!boundingBox || boundingBox.isEmpty()) return;
 
         const min = this._getGridCoords(boundingBox.min);
         const max = this._getGridCoords(boundingBox.max);
+        
+        // The object stored now includes its category.
+        const categorizedObject = { ...object, category };
 
         for (let x = min.x; x <= max.x; x++) {
             for (let y = min.y; y <= max.y; y++) {
@@ -40,13 +44,14 @@ export class SpatialGrid {
                     if (!this.grid.has(key)) {
                         this.grid.set(key, []);
                     }
-                    this.grid.get(key).push(object);
+                    this.grid.get(key).push(categorizedObject);
                 }
             }
         }
     }
 
-    getNearby(object) {
+    // UPDATED: Now accepts an optional categoryFilter.
+    getNearby(object, categoryFilter = null) {
         this.queryIds.clear();
         const results = [];
         
@@ -62,6 +67,11 @@ export class SpatialGrid {
                     const key = this._getCellKey({ x, y, z });
                     if (this.grid.has(key)) {
                         for (const cellObject of this.grid.get(key)) {
+                            // Apply category filter if provided.
+                            if (categoryFilter && cellObject.category !== categoryFilter) {
+                                continue;
+                            }
+                            
                             let uniqueId;
                             if (cellObject.entityId !== undefined) {
                                 uniqueId = `e-${cellObject.entityId}`;

@@ -1,4 +1,3 @@
-// src/systems/DamageSystem.js
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
@@ -10,24 +9,36 @@ export class DamageSystem extends System {
         this.entityFactory = serviceLocator.get('EntityFactory');
     }
 
-    applyDamage(entityId, amount, impactPoint, impactNormal, attackerId) {
+    applyDamage(entityId, amount, impactPoint, impactNormal, attackerId, weaponData) {
         const health = this.world.getComponent(entityId, 'HealthComponent');
-        if (!health || health.isDestroyed) return;
+        if (!health || health.state !== 'ALIVE') return;
 
-        // Log the damage source and amount
+        const healthBar = this.world.getComponent(entityId, 'HealthBarComponent');
+        if (healthBar) {
+            healthBar.needsUpdate = true;
+        }
+
+        eventBus.emit('debug_damage_event', {
+            attackerId,
+            targetId: entityId,
+            amount,
+            weaponData
+        });
+
         if (attackerId !== undefined && amount > 0) {
             const currentDamage = health.damageLog.get(attackerId) || 0;
             health.damageLog.set(attackerId, currentDamage + amount);
         }
 
         const finalImpactPoint = impactPoint || this.world.getComponent(entityId, 'TransformComponent')?.position;
+        const staticData = this.world.getComponent(entityId, 'StaticDataComponent');
 
-        if (amount > 0 && finalImpactPoint) {
-            this.entityFactory.effect.createDamageNumber(finalImpactPoint, amount);
+        if (amount > 0 && finalImpactPoint && staticData?.data.type !== 'station') {
+            this.entityFactory.spawnDamageNumber(finalImpactPoint, amount);
         }
 
         const isPlayer = !!this.world.getComponent(entityId, 'PlayerControlledComponent');
-        const isShip = !!this.world.getComponent(entityId, 'ShipTag');
+        const isShip = staticData?.data.type === 'ship';
 
         if (isPlayer) {
             eventBus.emit('player_damage_effect');
@@ -55,7 +66,6 @@ export class DamageSystem extends System {
 
         if (isShip && hullDamage > 5 && finalImpactPoint && impactNormal) {
             const physics = this.world.getComponent(entityId, 'PhysicsComponent');
-            const staticData = this.world.getComponent(entityId, 'StaticDataComponent');
             const shipColor = staticData?.data?.proceduralModel?.color || 'cccccc';
             this.entityFactory.effect.createHullDebris(finalImpactPoint, impactNormal, physics.velocity, shipColor);
         }
@@ -64,14 +74,24 @@ export class DamageSystem extends System {
             eventBus.emit('notification', { text: 'Shields offline!', type: 'danger' });
         }
 
-        if (health.hull.current <= 0 && !health.isDestroyed) {
-            health.isDestroyed = true;
+        if (health.hull.current <= 0) {
+            health.state = 'DESTROYED';
+
             const render = this.world.getComponent(entityId, 'RenderComponent');
             if (render) render.isVisible = false;
             
             const transform = this.world.getComponent(entityId, 'TransformComponent');
             if (transform) {
                 this.entityFactory.effect.createExplosion(transform.position);
+
+                if (staticData?.data.type === 'asteroid') {
+                    const asteroidColor = staticData.data.color || '888888';
+                    const physics = this.world.getComponent(entityId, 'PhysicsComponent');
+                    for (let i = 0; i < 5; i++) {
+                        const randomNormal = new THREE.Vector3().randomDirection();
+                        this.entityFactory.effect.createHullDebris(transform.position, randomNormal, physics.velocity, asteroidColor);
+                    }
+                }
             }
         }
     }
@@ -84,7 +104,8 @@ export class DamageSystem extends System {
                 event.amount,
                 event.impactPoint,
                 event.impactNormal,
-                event.attackerId // Pass the attackerId
+                event.attackerId,
+                event.weaponData
             );
         }
     }

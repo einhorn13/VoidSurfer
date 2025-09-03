@@ -12,9 +12,10 @@
     "proceduralModel": {
         "color": "8c7853",
         "components": [
-            { "type": "box", "size": [2, 0.8, 3.5], "pos": [0, 0, 0] },
-            { "type": "box", "size": [0.5, 0.5, 1.5], "pos": [0.5, 0.6, -1] },
-            { "type": "box", "size": [1, 1, 1], "pos": [-1.2, 0, 0.5] }
+            { "type": "box", "size": [2.5, 2, 3.5], "pos": [0, 0, 0],
+              "modifiers": [{ "type": "taper", "axis": "z", "amount": -0.2, "side": -1 }]
+            },
+            { "type": "box", "size": [4, 1, 1.2], "pos": [0, 0, 1] }
         ]
     },
     "bountyCredits": [20, 40],
@@ -26,6 +27,7 @@
     "engineSlot": { "type": "CLASS_1", "equipped": "WEAK_ENGINE" },
     "shieldSlot": { "type": "CLASS_1", "equipped": "WEAK_SHIELD" },
     "hardpoints": [
-        { "type": "LIGHT", "equipped": "PULSE_LASER" }
+        { "type": "LIGHT", "equipped": "PULSE_LASER", "pos": [-1.8, 0.2, -0.5] },
+        { "type": "LIGHT", "equipped": "PULSE_LASER", "pos": [1.8, 0.2, -0.5] }
     ]
 }

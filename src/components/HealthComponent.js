@@ -1,4 +1,3 @@
-// src/components/HealthComponent.js
 import { Component } from '../ecs/Component.js';
 
 export class HealthComponent extends Component {
@@ -6,11 +5,10 @@ export class HealthComponent extends Component {
         super();
         this.hull = { current: hull, max: maxHull };
         this.shield = { current: shield, max: maxShield, regenRate: shieldRegenRate };
-        this.isDestroyed = false;
-        this.dropsHandled = false;
-        this.isCleanedUp = false;
         
-        // New field to track damage sources
+        // State machine for entity lifecycle: ALIVE -> DESTROYED -> DROPS_HANDLED -> CLEANUP_PENDING
+        this.state = 'ALIVE';
+        
         this.damageLog = new Map();
     }
 }

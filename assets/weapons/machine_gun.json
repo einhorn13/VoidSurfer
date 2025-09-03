@@ -1,7 +1,9 @@
 {
     "id": "MACHINE_GUN",
     "name": "Machine Gun",
+    "cost": 1800,
     "type": "PROJECTILE",
+    "category": "PRIMARY",
     "slotType": "LIGHT",
     "damage": 4,
     "energyCost": 0,

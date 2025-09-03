@@ -1,6 +1,7 @@
 {
     "id": "PERFORMANCE_ENGINE",
     "name": "Performance Engine",
+    "cost": 3200,
     "maxSpeed": 35,
     "acceleration": 15,
     "mass": 8

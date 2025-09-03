@@ -1,7 +1,9 @@
 {
     "id": "MINING_LASER",
     "name": "Mining Laser",
+    "cost": 2200,
     "type": "LASER",
+    "category": "PRIMARY",
     "slotType": "LIGHT",
     "damage": 15,
     "energyCost": 9,

@@ -1,4 +1,3 @@
-// src/assemblers/ItemAssembler.js
 import * as THREE from 'three';
 import { BaseAssembler } from './BaseAssembler.js';
 import { MeshFactory } from '../MeshFactory.js';
@@ -9,6 +8,8 @@ import { HealthComponent } from '../components/HealthComponent.js';
 import { CollectibleComponent } from '../components/CollectibleComponent.js';
 import { StaticDataComponent } from '../components/StaticDataComponent.js';
 import { LifetimeComponent } from '../components/LifetimeComponent.js';
+import { MapIconComponent } from '../components/MapIconComponent.js';
+import { PhysicsComponent } from '../components/PhysicsComponent.js';
 
 export class ItemAssembler extends BaseAssembler {
     // This method is now used for simple, single-item drops (e.g., from asteroids)
@@ -19,7 +20,6 @@ export class ItemAssembler extends BaseAssembler {
             return null;
         }
 
-        const entityId = this.ecsWorld.createEntity();
         const mesh = MeshFactory.createItemMesh(); // Simple icosahedron for raw materials
 
         const contents = {
@@ -28,15 +28,16 @@ export class ItemAssembler extends BaseAssembler {
         };
 
         const collision = new CollisionComponent();
-        // FIX: Manually set the collision sphere radius based on the mesh size.
         collision.boundingSphere.radius = 0.8;
 
-        this.ecsWorld.addComponent(entityId, new TransformComponent({ position }));
-        this.ecsWorld.addComponent(entityId, new RenderComponent(mesh));
-        this.ecsWorld.addComponent(entityId, collision);
-        this.ecsWorld.addComponent(entityId, new CollectibleComponent(contents));
-        this.ecsWorld.addComponent(entityId, new HealthComponent({ hull: 1, maxHull: 1, shield: 0, maxShield: 0, shieldRegenRate: 0 }));
-        this.ecsWorld.addComponent(entityId, new StaticDataComponent({ type: 'item', id: itemId }));
+        const entityId = this.ecsWorld.createEntity()
+            .with(new TransformComponent({ position }))
+            .with(new RenderComponent(mesh))
+            .with(collision)
+            .with(new CollectibleComponent(contents))
+            .with(new HealthComponent({ hull: 1, maxHull: 1, shield: 0, maxShield: 0, shieldRegenRate: 0 }))
+            .with(new StaticDataComponent({ type: 'item', id: itemId }))
+            .build();
         
         mesh.userData.entityId = entityId;
         this.scene.add(mesh);
@@ -45,22 +46,22 @@ export class ItemAssembler extends BaseAssembler {
 
     // New method for creating salvage containers from destroyed ships
     createSalvageContainer(contents, position) {
-        const entityId = this.ecsWorld.createEntity();
         const mesh = MeshFactory.createSalvageMesh(); // Wreckage-like box
-
         const lifetime = THREE.MathUtils.randFloat(300, 600); // 5 to 10 minutes
-
         const collision = new CollisionComponent();
-        // FIX: Manually set the collision sphere radius to an appropriate size for the container.
         collision.boundingSphere.radius = 1.0;
 
-        this.ecsWorld.addComponent(entityId, new TransformComponent({ position }));
-        this.ecsWorld.addComponent(entityId, new RenderComponent(mesh));
-        this.ecsWorld.addComponent(entityId, collision);
-        this.ecsWorld.addComponent(entityId, new CollectibleComponent(contents));
-        this.ecsWorld.addComponent(entityId, new HealthComponent({ hull: 1, maxHull: 1, shield: 0, maxShield: 0, shieldRegenRate: 0 }));
-        this.ecsWorld.addComponent(entityId, new StaticDataComponent({ type: 'salvage' }));
-        this.ecsWorld.addComponent(entityId, new LifetimeComponent(lifetime));
+        const entityId = this.ecsWorld.createEntity()
+            .with(new TransformComponent({ position }))
+            .with(new RenderComponent(mesh))
+            .with(collision)
+            .with(new CollectibleComponent(contents))
+            .with(new HealthComponent({ hull: 1, maxHull: 1, shield: 0, maxShield: 0, shieldRegenRate: 0 }))
+            .with(new StaticDataComponent({ type: 'salvage' }))
+            .with(new LifetimeComponent(lifetime))
+            .with(new MapIconComponent({ iconType: 'square', color: '#00aaff', isStatic: false }))
+            .with(new PhysicsComponent({ mass: 1, bodyType: 'static' }))
+            .build();
 
         mesh.userData.entityId = entityId;
         this.scene.add(mesh);

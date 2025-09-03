@@ -1,7 +1,9 @@
 {
     "id": "LIGHT_PLASMA_GUN",
     "name": "Plasma Gun",
+    "cost": 1500,
     "type": "PROJECTILE",
+    "category": "PRIMARY",
     "slotType": "LIGHT",
     "damage": 5,
     "energyCost": 4,

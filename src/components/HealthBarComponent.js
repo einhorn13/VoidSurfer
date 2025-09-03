@@ -8,5 +8,10 @@ export class HealthBarComponent extends Component {
         this.canvas = canvas;
         this.context = context;
         this.isVisible = true;
+
+        // OPTIMIZATION: Flags to prevent unnecessary redraws
+        this.needsUpdate = true;
+        this.lastKnownHull = -1;
+        this.lastKnownShield = -1;
     }
 }

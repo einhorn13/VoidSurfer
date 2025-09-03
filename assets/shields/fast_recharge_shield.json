@@ -1,6 +1,7 @@
 {
     "id": "FAST_RECHARGE_SHIELD",
     "name": "Fast Recharge Shield",
+    "cost": 2800,
     "capacity": 80,
     "regenRate": 6,
     "mass": 4

@@ -1,36 +1,55 @@
-// src/systems/MissileSystem.js
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
+
+function isVector3NaN(v) {
+    return isNaN(v.x) || isNaN(v.y) || isNaN(v.z);
+}
 
 export class MissileSystem extends System {
     constructor(world) {
         super(world);
         this.eventBus = serviceLocator.get('eventBus');
-        this.spatialGrid = serviceLocator.get('WorldManager').spatialGrid;
-        this.queryBox = new THREE.Box3();
+        this.scanner = serviceLocator.get('Scanner');
     }
 
     update(delta) {
         const homingEntities = this.world.query(['HomingComponent', 'PhysicsComponent', 'TransformComponent', 'HealthComponent']);
         for (const entityId of homingEntities) {
             const health = this.world.getComponent(entityId, 'HealthComponent');
-            if (health.isDestroyed) continue;
+            if (health.state !== 'ALIVE') continue;
 
             const homing = this.world.getComponent(entityId, 'HomingComponent');
             const physics = this.world.getComponent(entityId, 'PhysicsComponent');
             const transform = this.world.getComponent(entityId, 'TransformComponent');
             
+            if (isVector3NaN(physics.velocity)) {
+                console.error(`NaN detected in velocity for missile ${entityId}. Destroying missile.`);
+                health.state = 'DESTROYED';
+                continue;
+            }
+
             let targetTransform = this.world.getComponent(homing.targetId, 'TransformComponent');
             const targetHealth = this.world.getComponent(homing.targetId, 'HealthComponent');
 
-            if (!targetTransform || !targetHealth || targetHealth.isDestroyed) {
-                homing.targetId = this.findNewTarget(entityId);
-                if (homing.targetId === null) continue; // No new target found, continue straight
-                targetTransform = this.world.getComponent(homing.targetId, 'TransformComponent');
+            if (!targetTransform || !targetHealth || targetHealth.state !== 'ALIVE') {
+                const newTargetId = this.scanner.findBestTargetInRadius(entityId, 400);
+                if (newTargetId) {
+                    homing.targetId = newTargetId;
+                    targetTransform = this.world.getComponent(homing.targetId, 'TransformComponent');
+                } else {
+                    homing.targetId = null;
+                }
             }
 
-            const directionToTarget = new THREE.Vector3().subVectors(targetTransform.position, transform.position).normalize();
+            if (!homing.targetId || !targetTransform) continue;
+
+            const directionToTarget = new THREE.Vector3().subVectors(targetTransform.position, transform.position);
+
+            if (directionToTarget.lengthSq() < 0.0001) {
+                continue;
+            }
+            directionToTarget.normalize();
             
             const desiredVelocity = directionToTarget.clone().multiplyScalar(homing.maxSpeed);
             physics.velocity.lerp(desiredVelocity, homing.turnRate * delta);
@@ -46,38 +65,5 @@ export class MissileSystem extends System {
                 transform.rotation.slerp(lookAtQuaternion, delta * 10.0);
             }
         }
-    }
-
-    findNewTarget(missileId) {
-        const missile = this.world.getComponent(missileId, 'MissileComponent');
-        const transform = this.world.getComponent(missileId, 'TransformComponent');
-        if (!missile || !transform) return null;
-
-        let closestTargetId = null;
-        let minDistanceSq = 400 * 400; // Search within a 400m radius
-
-        const size = new THREE.Vector3(1, 1, 1).multiplyScalar(800);
-        this.queryBox.setFromCenterAndSize(transform.position, size);
-        const nearby = this.spatialGrid.getNearby({ boundingBox: this.queryBox });
-
-        for (const other of nearby) {
-            const targetId = other.entityId;
-            if (targetId === missileId || targetId === missile.originId) continue;
-            
-            const targetHealth = this.world.getComponent(targetId, 'HealthComponent');
-            if (!targetHealth || targetHealth.isDestroyed) continue;
-            
-            const targetFaction = this.world.getComponent(targetId, 'FactionComponent');
-            if (!targetFaction || targetFaction.name === missile.faction) continue;
-
-            const targetTransform = this.world.getComponent(targetId, 'TransformComponent');
-            const distanceSq = transform.position.distanceToSquared(targetTransform.position);
-
-            if (distanceSq < minDistanceSq) {
-                minDistanceSq = distanceSq;
-                closestTargetId = targetId;
-            }
-        }
-        return closestTargetId;
     }
 }

@@ -1,19 +1,43 @@
 {
     "spawnInterval": 5.0,
     "despawnDistance": 5000,
-    "spawnDistance": { "min": 500, "max": 2500 },
-    "factionLimits": {
-        "PIRATE_FACTION": 5,
-        "CIVILIAN_FACTION": 2
+    "spawnDistance": { "min": 1500, "max": 2500 },
+    "worldBoundary": 15000,
+    "localFactionLimits": {
+        "PIRATE_FACTION": 6,
+        "CIVILIAN_FACTION": 4
     },
-    "shipsByFaction": {
-        "PIRATE_FACTION": [
-            "SCRAPHEAP", 
-            "SCRAPHEAP", 
-            "SCRAPHEAP", 
-            "PIRATE_RAIDER", 
-            "GUNSHIP"
-        ],
-        "CIVILIAN_FACTION": ["FREIGHTER"]
+    "squadTypes": {
+        "PIRATE_LIGHT_SCOUT": ["SCRAPHEAP"],
+        "PIRATE_MEDIUM_RAIDER": ["PIRATE_RAIDER"],
+        "PIRATE_HEAVY_ASSAULT": ["GUNSHIP"],
+        "CIV_FREIGHTER": ["FREIGHTER"],
+        "CIV_INTERCEPTOR": ["INTERCEPTOR"]
+    },
+    "squads": {
+        "PIRATE_SCOUT_SOLO": {
+            "faction": "PIRATE_FACTION", "threat": 0,
+            "ships": ["PIRATE_LIGHT_SCOUT"]
+        },
+        "PIRATE_SCOUT_PAIR": {
+            "faction": "PIRATE_FACTION", "threat": 1,
+            "ships": ["PIRATE_LIGHT_SCOUT", "PIRATE_LIGHT_SCOUT"]
+        },
+        "PIRATE_RAIDER_PATROL": {
+            "faction": "PIRATE_FACTION", "threat": 2,
+            "ships": ["PIRATE_MEDIUM_RAIDER", "PIRATE_LIGHT_SCOUT"]
+        },
+        "PIRATE_HUNTER_WING": {
+            "faction": "PIRATE_FACTION", "threat": 4,
+            "ships": ["PIRATE_MEDIUM_RAIDER", "PIRATE_HEAVY_ASSAULT"]
+        },
+        "CIV_FREIGHTER_SOLO": {
+            "faction": "CIVILIAN_FACTION", "threat": 0,
+            "ships": ["CIV_FREIGHTER"]
+        },
+        "CIV_FREIGHTER_ESCORTED": {
+            "faction": "CIVILIAN_FACTION", "threat": 1,
+            "ships": ["CIV_FREIGHTER", "CIV_INTERCEPTOR"]
+        }
     }
 }

@@ -1,13 +1,11 @@
-// src/systems/CollisionSystem.js
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
 
 const tempVec3_1 = new THREE.Vector3();
 const tempVec3_2 = new THREE.Vector3();
-const tempSphere = new THREE.Sphere(); // Re-usable sphere for calculations
+const tempSphere = new THREE.Sphere();
 
-// Helper for Continuous Collision Detection
 function segmentSphereIntersect(p0, p1, sphere) {
     if (!p0 || !p1 || !sphere || sphere.radius <= 0) return null;
     const segment = tempVec3_1.subVectors(p1, p0);
@@ -20,15 +18,11 @@ function segmentSphereIntersect(p0, p1, sphere) {
     
     if (c > 0 && b > 0) return null;
 
-    // FIX: The discriminant calculation was missing a term (segmentLengthSq).
-    // This is the correct quadratic formula discriminant for ray-sphere intersection.
     const discriminant = b * b - segmentLengthSq * c;
     if (discriminant < 0) return null;
 
     let t = (-b - Math.sqrt(discriminant));
-    // We are only interested in the first intersection point.
-    // The division by segmentLengthSq normalizes t to be between 0 and 1 for the segment.
-    if (t < 0) t = 0; // If the start is inside, clamp to the start.
+    if (t < 0) t = 0;
     
     t /= segmentLengthSq;
     
@@ -52,7 +46,7 @@ export class CollisionSystem extends System {
 
         for (const entityId of allCollidables) {
             const health = this.world.getComponent(entityId, 'HealthComponent');
-            if (health && health.isDestroyed) continue;
+            if (health && health.state !== 'ALIVE') continue;
             
             const collision = this.world.getComponent(entityId, 'CollisionComponent');
             const nearby = serviceLocator.get('WorldManager').spatialGrid.getNearby({ entityId, collision });
@@ -66,14 +60,57 @@ export class CollisionSystem extends System {
                 this.processedPairs.add(pairKey);
 
                 const otherHealth = this.world.getComponent(otherId, 'HealthComponent');
-                if (otherHealth && otherHealth.isDestroyed) continue;
+                if (otherHealth && otherHealth.state !== 'ALIVE') continue;
                 
                 this.checkAndHandleCollision(entityId, otherId);
             }
         }
     }
 
+    checkDetailedIntersection(collA, collB) {
+        // Use detailed volumes if available, otherwise fallback to broad-phase sphere
+        const volumesA = collA.volumes.length > 0 ? collA.volumes : [collA.boundingSphere];
+        const volumesB = collB.volumes.length > 0 ? collB.volumes : [collB.boundingSphere];
+
+        for (const volA of volumesA) {
+            for (const volB of volumesB) {
+                if (volA.intersectsSphere(volB)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     checkAndHandleCollision(idA, idB) {
+        const collisionA = this.world.getComponent(idA, 'CollisionComponent');
+        const collisionB = this.world.getComponent(idB, 'CollisionComponent');
+        if (!collisionA || !collisionB) return;
+
+        // Broad-phase check first for efficiency
+        if (!collisionA.boundingSphere.intersectsSphere(collisionB.boundingSphere)) {
+            return;
+        }
+
+        // Now perform a detailed check
+        if (!this.checkDetailedIntersection(collisionA, collisionB)) {
+            return;
+        }
+
+        const isShipA = !!this.world.getComponent(idA, 'ShipComponent');
+        const isCollectibleB = this.world.getComponent(idB, 'CollectibleComponent');
+        if (isShipA && isCollectibleB) {
+            this.world.publish('collection_collision', { collectorId: idA, collectibleId: idB });
+            return;
+        }
+
+        const isShipB = !!this.world.getComponent(idB, 'ShipComponent');
+        const isCollectibleA = this.world.getComponent(idA, 'CollectibleComponent');
+        if (isShipB && isCollectibleA) {
+            this.world.publish('collection_collision', { collectorId: idB, collectibleId: idA });
+            return;
+        }
+
         const isProjectileA = this.world.getComponent(idA, 'ProjectileComponent') || this.world.getComponent(idA, 'MissileComponent');
         const isProjectileB = this.world.getComponent(idB, 'ProjectileComponent') || this.world.getComponent(idB, 'MissileComponent');
 
@@ -94,15 +131,26 @@ export class CollisionSystem extends System {
         const targetCollision = this.world.getComponent(targetId, 'CollisionComponent');
         if (!projTransform || !projCollision || !targetCollision) return;
 
-        // --- SWEPT SPHERE TEST LOGIC ---
-        // To simulate a sphere moving, we virtually inflate the target sphere
-        // by the projectile's radius and test against the projectile's center line.
         tempSphere.copy(targetCollision.boundingSphere);
         tempSphere.radius += projCollision.boundingSphere.radius;
 
         const impactPoint = segmentSphereIntersect(projTransform.prevPosition, projTransform.position, tempSphere);
 
         if (impactPoint) {
+            const isMissile = this.world.getComponent(projId, 'MissileComponent');
+            const health = this.world.getComponent(projId, 'HealthComponent');
+
+            if (isMissile) {
+                const stateComp = this.world.getComponent(projId, 'StateComponent');
+                const armingState = stateComp?.states.get('ARMING');
+
+                if (health && health.state === 'ALIVE' && armingState && armingState.timeLeft <= 0) {
+                    this.world.publish('detonation', { missileId: projId, position: impactPoint });
+                    health.state = 'DESTROYED';
+                    return;
+                }
+            }
+            
             this.world.publish('hit', {
                 sourceId: projId,
                 targetId: targetId,
@@ -112,36 +160,15 @@ export class CollisionSystem extends System {
     }
 
     handleGenericCollision(idA, idB) {
-        const collisionA = this.world.getComponent(idA, 'CollisionComponent');
-        const collisionB = this.world.getComponent(idB, 'CollisionComponent');
-        if (!collisionA || !collisionB || !collisionA.boundingSphere.intersectsSphere(collisionB.boundingSphere)) {
-            return;
-        }
-
-        // FIX: Prioritize collection logic. Check for Ship-Collectible pairs first.
-        const isShipA = this.world.getComponent(idA, 'ShipTag');
-        const isCollectibleB = this.world.getComponent(idB, 'CollectibleComponent');
-        if (isShipA && isCollectibleB) {
-            this.world.publish('collection_collision', { collectorId: idA, collectibleId: idB });
-            return; // Collection event published, no physical collision needed.
-        }
-
-        const isShipB = this.world.getComponent(idB, 'ShipTag');
-        const isCollectibleA = this.world.getComponent(idA, 'CollectibleComponent');
-        if (isShipB && isCollectibleA) {
-            this.world.publish('collection_collision', { collectorId: idB, collectibleId: idA });
-            return; // Collection event published, no physical collision needed.
-        }
-
-        // If it's not a collection event, proceed with physics-based collision.
         const transformA = this.world.getComponent(idA, 'TransformComponent');
         const physicsA = this.world.getComponent(idA, 'PhysicsComponent');
+        const collisionA = this.world.getComponent(idA, 'CollisionComponent');
         
         const transformB = this.world.getComponent(idB, 'TransformComponent');
         const physicsB = this.world.getComponent(idB, 'PhysicsComponent');
+        const collisionB = this.world.getComponent(idB, 'CollisionComponent');
         
-        // This check is now correct, as we've already handled non-physical collectibles.
-        if (!physicsA || !physicsB) return;
+        if (!physicsA || !physicsB || !collisionA || !collisionB) return;
 
         this.world.publish('hit', {
             sourceData: { type: 'collision', entityId: idA, physics: physicsA },
@@ -155,11 +182,12 @@ export class CollisionSystem extends System {
             if (totalInverseMass <= 0) return;
             
             const collisionNormal = tempVec3_1.subVectors(transformA.position, transformB.position).normalize();
+            
             const moveA = collisionNormal.clone().multiplyScalar(penetrationDepth * (1 / physicsA.mass) / totalInverseMass);
             const moveB = collisionNormal.clone().multiplyScalar(-penetrationDepth * (1 / physicsB.mass) / totalInverseMass);
 
-            if (physicsA.bodyType === 'dynamic') transformA.position.add(moveA);
-            if (physicsB.bodyType === 'dynamic') transformB.position.add(moveB);
+            if (physicsA.bodyType === 'dynamic') physicsA.correctionVector.add(moveA);
+            if (physicsB.bodyType === 'dynamic') physicsB.correctionVector.add(moveB);
         }
     }
 }

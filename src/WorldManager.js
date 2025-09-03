@@ -1,4 +1,3 @@
-// src/WorldManager.js
 import * as THREE from 'three';
 import { serviceLocator } from './ServiceLocator.js';
 import { SpatialGrid } from './SpatialGrid.js';
@@ -34,7 +33,7 @@ export class WorldManager {
         const sunId = entityFactory.environment.createSun(systemConfig.sun);
         this.celestialBodyEntityIds.push(sunId);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        const directionalLight = new THREE.DirectionalLight(0xffffdd, 1.5);
         directionalLight.position.set(...systemConfig.sun.position);
         this.scene.add(directionalLight);
 
@@ -65,12 +64,29 @@ export class WorldManager {
             const collision = this.ecsWorld.getComponent(entityId, 'CollisionComponent');
             const health = this.ecsWorld.getComponent(entityId, 'HealthComponent');
 
-            if (health && health.isDestroyed) {
+            if (health && health.state !== 'ALIVE') {
                 continue;
             }
 
-            // The grid's register function expects an object with an entityId and a collision component
-            this.spatialGrid.register({ entityId, collision });
+            let category = 'other';
+            const staticData = this.ecsWorld.getComponent(entityId, 'StaticDataComponent');
+            const staticType = staticData?.data?.type;
+
+            if (this.ecsWorld.getComponent(entityId, 'AIControlledComponent')) {
+                category = 'ship';
+            } else if (this.ecsWorld.getComponent(entityId, 'PlayerControlledComponent')) {
+                category = 'ship';
+            } else if (staticType === 'asteroid') {
+                category = 'asteroid';
+            } else if (this.ecsWorld.getComponent(entityId, 'CollectibleComponent')) {
+                category = 'collectible';
+            } else if (staticType === 'station') {
+                category = 'station';
+            } else if (staticType === 'missile' || staticType === 'projectile_pooled') {
+                category = 'projectile';
+            }
+
+            this.spatialGrid.register({ entityId, collision }, category);
         }
     }
 }

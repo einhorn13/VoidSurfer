@@ -1,4 +1,3 @@
-// src/systems/StationSystem.js
 import { System } from '../ecs/System.js';
 import * as THREE from 'three';
 
@@ -7,7 +6,7 @@ export class StationSystem extends System {
         super(world);
         // Helper objects to avoid creating them in the loop
         this.deltaRotation = new THREE.Quaternion();
-        this.rotationAxis = new THREE.Vector3(0, 0, 1);
+        this.rotationAxis = new THREE.Vector3(0, 1, 0); // Rotate around Y axis
     }
     update(delta) {
         const entities = this.world.query(['StationComponent', 'TransformComponent']);

@@ -7,10 +7,10 @@ export class HardpointComponent extends Component {
     constructor(hardpointData) {
         super();
         const dataManager = serviceLocator.get('DataManager');
-        // hardpointData is the array from the ship's JSON file
         this.hardpoints = hardpointData.map(hp => ({
-            ...hp, // Copies type, pos
-            weapon: new Weapon(dataManager.getWeaponData(hp.equipped))
+            ...hp,
+            weapon: new Weapon(dataManager.getWeaponData(hp.equipped)),
+            cooldownLeft: 0, // Individual Weapon Cooldown (WCD)
         }));
         this.selectedWeaponIndex = 0;
     }

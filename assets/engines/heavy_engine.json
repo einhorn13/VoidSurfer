@@ -1,6 +1,7 @@
 {
     "id": "HEAVY_ENGINE",
     "name": "Heavy Engine",
+    "cost": 2500,
     "maxSpeed": 20,
     "acceleration": 6,
     "mass": 20

@@ -1,4 +1,3 @@
-// src/CameraController.js
 import * as THREE from 'three';
 import { serviceLocator } from './ServiceLocator.js';
 
@@ -18,7 +17,7 @@ export class CameraController {
         if (this.targetId === null) return;
         
         const health = this.ecsWorld.getComponent(this.targetId, 'HealthComponent');
-        if (!health || health.isDestroyed) return;
+        if (!health || health.state !== 'ALIVE') return;
 
         const physics = this.ecsWorld.getComponent(this.targetId, 'PhysicsComponent');
         const transform = this.ecsWorld.getComponent(this.targetId, 'TransformComponent');

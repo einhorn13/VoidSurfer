@@ -22,6 +22,7 @@
     "config/spawn_config.json",
     "config/system_config.json",
     "config/game_balance.json",
+    "config/zones_config.json",
     "asteroids/rock.json",
     "asteroids/iron.json"
 ]

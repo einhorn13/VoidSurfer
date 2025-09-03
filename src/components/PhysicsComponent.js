@@ -14,5 +14,9 @@ export class PhysicsComponent extends Component {
         
         this.isAccelerating = false;
         this.boostMultiplier = 1.0;
+        this.strafeDirection = 0; // -1 for left, 1 for right
+        
+        // New field for collision resolution
+        this.correctionVector = new THREE.Vector3();
     }
 }

@@ -1,24 +1,43 @@
 // src/InputController.js
-const keyState = {
-    mouseLeft: false,
-    mouseRight: false
-};
+import { actionBuffer } from './ActionBuffer.js';
+import { keybindingManager } from './KeybindingManager.js';
+
+// This file is now only responsible for capturing raw browser events
+// and passing them to the keybinding manager and action buffer.
 
 const mouseState = {
     x: 0, // Normalized position (-1 to 1)
     y: 0  // Normalized position (-1 to 1)
 };
 
-window.addEventListener('keydown', (e) => { keyState[e.key.toLowerCase()] = true; });
-window.addEventListener('keyup', (e) => { keyState[e.key.toLowerCase()] = false; });
+window.addEventListener('keydown', (e) => {
+    const action = keybindingManager.getActionForKey(e.key);
+    actionBuffer.pressAction(action);
+});
+
+window.addEventListener('keyup', (e) => {
+    const action = keybindingManager.getActionForKey(e.key);
+    actionBuffer.releaseAction(action);
+});
 
 window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) keyState.mouseLeft = true;
-    if (e.button === 2) keyState.mouseRight = true;
+    let key;
+    if (e.button === 0) key = 'mouseleft';
+    if (e.button === 2) key = 'mouseright';
+    if (key) {
+        const action = keybindingManager.getActionForKey(key);
+        actionBuffer.pressAction(action);
+    }
 });
+
 window.addEventListener('mouseup', (e) => {
-    if (e.button === 0) keyState.mouseLeft = false;
-    if (e.button === 2) keyState.mouseRight = false;
+    let key;
+    if (e.button === 0) key = 'mouseleft';
+    if (e.button === 2) key = 'mouseright';
+    if (key) {
+        const action = keybindingManager.getActionForKey(key);
+        actionBuffer.releaseAction(action);
+    }
 });
 
 window.addEventListener('mousemove', (e) => {
@@ -30,5 +49,4 @@ window.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 });
 
-
-export { keyState, mouseState };
+export { mouseState };

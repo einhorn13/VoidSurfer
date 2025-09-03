@@ -1,6 +1,8 @@
-// src/commands/RollCommand.js
 import * as THREE from 'three';
 import { ShipCommand } from './ShipCommand.js';
+
+// Optimization: Define constant axis to avoid reallocation.
+const ROLL_AXIS = new THREE.Vector3(0, 0, 1);
 
 export class RollCommand extends ShipCommand {
     /**
@@ -17,6 +19,9 @@ export class RollCommand extends ShipCommand {
         if (!transform || !physics) return;
 
         const turnAmount = physics.turnSpeed * services.delta;
-        transform.rotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -turnAmount * this.direction));
+        
+        // Use a pre-allocated quaternion to avoid creating new objects in the loop.
+        const deltaRotation = new THREE.Quaternion().setFromAxisAngle(ROLL_AXIS, -turnAmount * this.direction);
+        transform.rotation.multiply(deltaRotation);
     }
 }

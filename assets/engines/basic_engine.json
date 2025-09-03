@@ -1,6 +1,7 @@
 {
     "id": "BASIC_ENGINE",
     "name": "Basic Engine",
+    "cost": 1200,
     "maxSpeed": 25,
     "acceleration": 10,
     "mass": 10

@@ -5,226 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Elite HTML5 - Final Phase 4</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #000; color: #0f0; font-family: 'Courier New', Courier, monospace; cursor: none; } /* Hide system cursor */
-        canvas { display: block; }
-        #hud {
-            position: absolute; bottom: 10px; left: 10px;
-            width: 400px; height: 160px;
-            background-color: rgba(0, 50, 0, 0.5);
-            border: 1px solid #0f0;
-        }
-        #hud-canvas {
-            width: 100%;
-            height: 100%;
-        }
-
-        #damage-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: red; opacity: 0;
-            pointer-events: none; transition: opacity 0.5s;
-        }
-
-        #dock-prompt, #station-menu, #shipyard-menu, #market-menu { /* Common modal styles */
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 20, 0, 0.9); border: 2px solid #0f0;
-            padding: 20px; display: none;
-            cursor: default; /* Show cursor over UI */
-        }
-        #dock-prompt { background-color: rgba(0, 80, 0, 0.7); font-size: 24px; font-weight: bold; }
-        #station-menu { width: 400px; flex-direction: column; gap: 15px; }
-        #station-menu h2 { margin: 0 0 10px 0; text-align: center; color: #0f0; }
-        #station-menu button {
-            background-color: #050; border: 1px solid #0f0;
-            color: #0f0; padding: 10px; font-size: 16px;
-            cursor: pointer; text-align: left;
-        }
-        #station-menu button:hover { background-color: #080; }
-        #station-menu .cost { float: right; }
-        #shipyard-menu { width: 500px; flex-direction: column; gap: 10px; }
-        #shipyard-menu h2 { margin: 0 0 10px 0; text-align: center; }
-        #shipyard-list, #market-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; }
-        #shipyard-list li, #market-list li {
-            background-color: #030; padding: 8px; border: 1px solid #050;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        #shipyard-list button, #market-list button { background-color: #080; border: 1px solid #0f0; color: #0f0; padding: 5px 10px; cursor: pointer; }
-        #shipyard-list button:hover, #market-list button:hover { background-color: #0a0; }
-        #shipyard-list button:disabled { background-color: #333; color: #888; cursor: not-allowed; }
-
-        #scanner-container {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-        }
-        .scanner-target {
-            position: absolute; width: 12px; height: 12px;
-            border: 2px solid yellow;
-            box-sizing: border-box;
-        }
-        .scanner-distance-text {
-            position: absolute;
-            color: #ccc;
-            font-size: 12px;
-            text-shadow: 1px 1px 2px black;
-            white-space: nowrap;
-        }
-        #nav-pointer {
-            position: absolute; color: #00ffaa;
-            display: none;
-            font-size: 20px; font-weight: bold; text-shadow: 0 0 5px #00ffaa;
-        }
-
-        #console-container {
-            position: absolute; top: 0; left: 0; width: 100%; height: 40%;
-            background-color: rgba(0, 10, 0, 0.85);
-            border-bottom: 2px solid #0f0;
-            box-sizing: border-box;
-            display: none;
-            flex-direction: column;
-            padding: 10px;
-            cursor: text;
-        }
-        #console-output {
-            flex-grow: 1;
-            overflow-y: auto;
-            list-style: none;
-            padding: 0;
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            color: #eee;
-        }
-        #console-output li {
-            padding: 2px 0;
-        }
-        #console-input-wrapper {
-            display: flex;
-        }
-        #console-input-wrapper span {
-            font-size: 16px;
-            margin-right: 8px;
-        }
-        #console-input {
-            flex-grow: 1;
-            background: transparent;
-            border: none;
-            color: #0f0;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 16px;
-        }
-        #console-input:focus {
-            outline: none;
-        }
-
-        #mouse-cursor {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            border: 2px solid #0f0;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            box-sizing: border-box;
-        }
-        
-        #notification-log {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 350px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            pointer-events: none;
-        }
-        .log-message {
-            background-color: rgba(0, 20, 0, 0.7);
-            border-left: 3px solid #0f0;
-            padding: 8px 12px;
-            font-size: 14px;
-            transition: opacity 0.5s;
-        }
-        .log-message.type-info { border-left-color: #33aaff; color: #ccffff; }
-        .log-message.type-success { border-left-color: #44ff44; color: #ccffcc; }
-        .log-message.type-warning { border-left-color: #ffaa00; color: #ffeecc; }
-        .log-message.type-danger { border-left-color: #ff3333; color: #ffcccc; }
-
-        #crosshair {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            color: #00ff00;
-            font-size: 20px;
-            font-weight: bold;
-            text-align: center;
-            line-height: 20px;
-            pointer-events: none;
-            text-shadow: 0 0 5px #00ff00;
-        }
-
-        #loading-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #000;
-            color: #0f0;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-size: 24px;
-            z-index: 1000;
-        }
-        #loading-progress-bar-container {
-            width: 300px;
-            height: 10px;
-            border: 1px solid #0f0;
-            margin-top: 20px;
-        }
-        #loading-progress-bar {
-            width: 0%;
-            height: 100%;
-            background-color: #0f0;
-            transition: width 0.1s linear;
-        }
-        
-        /* NEW STYLES FOR TARGET DISPLAY */
-        #target-display {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            width: 250px;
-            background-color: rgba(0, 50, 0, 0.5);
-            border: 1px solid #0f0;
-            padding: 8px;
-            display: none; /* Initially hidden */
-            font-family: 'Courier New', Courier, monospace;
-            color: #0f0;
-            font-size: 14px;
-        }
-        #target-display .target-name {
-            font-weight: bold;
-            font-size: 16px;
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #target-display .target-bar-container {
-            display: flex;
-            align-items: center;
-            margin-top: 4px;
-        }
-        #target-display .target-bar-label {
-            width: 35px; /* Fixed width for SHD/HULL labels */
-        }
-        #target-display .target-bar {
-            flex-grow: 1;
-            height: 10px;
-            background-color: #050;
-            border: 1px solid #0f0;
-        }
-        #target-display .target-bar-fill {
-            height: 100%;
-            transition: width 0.2s linear;
-        }
-
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="loading-overlay">
@@ -235,21 +16,47 @@
     </div>
 
     <div id="damage-overlay"></div>
+    
+    <canvas id="world-ui-canvas"></canvas>
+
+    <div id="abilities-container"></div>
+
     <div id="hud">
         <canvas id="hud-canvas"></canvas>
     </div>
-    <div id="target-display"></div>
+    <canvas id="minimap-canvas"></canvas>
+    
+    <div id="target-display">
+        <div id="target-name" class="target-name">Unknown Target</div>
+        <div id="target-faction" class="target-faction"></div>
+        <div id="target-info-grid">
+            <div>Dist: <span id="target-distance">--</span></div>
+            <div>Speed: <span id="target-speed">--</span></div>
+        </div>
+        <div id="target-health-bars">
+            <!-- Health bars will be injected by JS -->
+        </div>
+        <div id="target-scan-bar" class="target-scan-bar">
+            <div id="target-scan-fill" class="target-scan-bar-fill" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <div id="system-map-container">
+        <canvas id="system-map-canvas"></canvas>
+        <div id="system-map-info-panel"></div>
+    </div>
 
     <div id="dock-prompt">Press 'G' to Dock</div>
     <div id="station-menu">
         <h2>Station Services</h2>
-        <button id="btn-repair">Repair Hull <span class="cost" id="cost-repair">0 CR</span></button>
-        <button id="btn-rearm">Rearm <span class="cost" id="cost-rearm">0 CR</span></button>
+        <button id="btn-repair"><span>Repair Hull</span><span class="details" id="details-repair"></span><span class="cost" id="cost-repair">0 CR</span></button>
+        <button id="btn-rearm"><span>Rearm</span><span class="details" id="details-rearm"></span><span class="cost" id="cost-rearm">0 CR</span></button>
         <button id="btn-market">Market</button>
         <button id="btn-shipyard">Shipyard</button>
+        <button id="btn-workshop">Workshop</button>
         <button id="btn-undock">Undock</button>
     </div>
-    <div id="market-menu" style="width: 500px; flex-direction: column; gap: 10px;">
+    <div id="market-menu" style="width: 600px; flex-direction: column; gap: 10px;">
         <h2>Market</h2>
         <p>Sell items from your cargo hold.</p>
         <ul id="market-list"></ul>
@@ -260,8 +67,27 @@
         <ul id="shipyard-list"></ul>
         <button id="btn-shipyard-back" style="margin-top: 15px;">Back to Services</button>
     </div>
-    <div id="scanner-container"></div>
-    <div id="nav-pointer">[+]</div>
+    <div id="workshop-menu">
+        <h2>Workshop</h2>
+        <div class="workshop-grid">
+            <div class="workshop-panel">
+                <h3>Station Stock</h3>
+                <ul id="workshop-stock-list"></ul>
+            </div>
+            <div class="workshop-panel">
+                <h3>Your Inventory</h3>
+                <ul id="workshop-inventory-list"></ul>
+            </div>
+        </div>
+        <button id="btn-workshop-back" style="margin-top: 15px;">Back to Services</button>
+    </div>
+    
+    <div id="ship-comparison-tooltip"></div>
+
+    <div id="offscreen-pointer-container">
+        <div id="nav-target-offscreen-pointer" class="offscreen-pointer">▶</div>
+    </div>
+    <div id="nav-pointer">[]</div>
 
     <div id="console-container">
         <ul id="console-output"></ul>
@@ -273,12 +99,12 @@
     
     <div id="mouse-cursor"></div>
     <div id="notification-log"></div>
-    <div id="crosshair">+</div>
 
     <script type="importmap">
         { "imports": { 
             "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "lil-gui": "https://unpkg.com/lil-gui@0.19.1/dist/lil-gui.esm.js"
         } }
     </script>
     <script type="module" src="src/main.js"></script>

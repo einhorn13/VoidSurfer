@@ -1,4 +1,3 @@
-// src/systems/EffectSystem.js
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
@@ -27,7 +26,7 @@ export class EffectSystem extends System {
             const render = this.world.getComponent(entityId, 'RenderComponent');
             const lifetime = this.world.getComponent(entityId, 'LifetimeComponent');
             
-            if (!render.mesh) continue;
+            if (!render.mesh || !render.mesh.geometry.attributes.position) continue;
 
             const positions = render.mesh.geometry.attributes.position.array;
             for (let i = 0; i < effect.velocities.length; i++) {
@@ -79,7 +78,7 @@ export class EffectSystem extends System {
         const entities = this.world.query(['ShieldImpactEffectComponent', 'RenderComponent', 'HealthComponent', 'TransformComponent']);
         for (const entityId of entities) {
             const health = this.world.getComponent(entityId, 'HealthComponent');
-            if (health.isDestroyed) continue;
+            if (health.state !== 'ALIVE') continue;
 
             const effect = this.world.getComponent(entityId, 'ShieldImpactEffectComponent');
             const render = this.world.getComponent(entityId, 'RenderComponent');
@@ -87,14 +86,11 @@ export class EffectSystem extends System {
             const targetTransform = this.world.getComponent(effect.targetEntityId, 'TransformComponent');
             const targetHealth = this.world.getComponent(effect.targetEntityId, 'HealthComponent');
 
-            // FIX: Re-introduce the sync logic.
-            // If the target is gone, the effect should be cleaned up.
-            if (!targetTransform || !targetHealth || targetHealth.isDestroyed) {
-                health.isDestroyed = true;
+            if (!targetTransform || !targetHealth || targetHealth.state !== 'ALIVE') {
+                health.state = 'DESTROYED';
                 continue;
             }
 
-            // The effect mesh must follow the target ship's position and rotation.
             transform.position.copy(targetTransform.position);
             transform.rotation.copy(targetTransform.rotation);
             
@@ -108,15 +104,15 @@ export class EffectSystem extends System {
     }
 
     _updateSunShader(delta) {
-        const sunEntities = this.world.query(['CelestialBodyTag']);
-        for (const entityId of sunEntities) {
+        const entities = this.world.query(['StaticDataComponent', 'RenderComponent']);
+        for (const entityId of entities) {
             const staticData = this.world.getComponent(entityId, 'StaticDataComponent');
             if (staticData && staticData.data.type === 'sun') {
                 const render = this.world.getComponent(entityId, 'RenderComponent');
                 if (render && render.mesh && render.mesh.material.uniforms && render.mesh.material.uniforms.time) {
                     render.mesh.material.uniforms.time.value += delta;
                 }
-                break; // Assume only one sun
+                break;
             }
         }
     }
@@ -132,16 +128,14 @@ export class EffectSystem extends System {
             transform.position.add(damageNumber.velocity.clone().multiplyScalar(delta));
             
             if (render.mesh) {
-                // Dynamically adjust scale to maintain constant screen size
                 const distance = this.camera.position.distanceTo(transform.position);
                 const apparentSizeFactor = 0.04;
                 const scale = distance * apparentSizeFactor;
-                const aspect = render.mesh.userData.aspect || 1;
                 
+                const aspect = render.mesh.userData.aspect || 1;
                 render.mesh.scale.set(scale * aspect, scale, 1.0);
 
-                // Fade out
-                const initialDuration = 1.5; // Must match LifetimeComponent duration
+                const initialDuration = 1.5;
                 render.mesh.material.opacity = Math.min(1.0, lifetime.timeLeft / (initialDuration * 0.75));
             }
         }

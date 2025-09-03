@@ -1,91 +1,192 @@
-// src/HUDManager.js
 import { serviceLocator } from './ServiceLocator.js';
 
 /**
  * Manages rendering the 2D canvas Heads-Up Display.
  */
 export class HUDManager {
-    constructor() {
-        this.dataManager = serviceLocator.get('DataManager');
-        this.ecsWorld = serviceLocator.get('ECSWorld');
-        this.scanner = serviceLocator.get('Scanner');
+    constructor(scanner, dataManager, ecsWorld) {
+        this.dataManager = dataManager;
+        this.ecsWorld = ecsWorld;
+        this.scanner = scanner;
+        this.navigationService = serviceLocator.get('NavigationService');
         
         this.canvas = document.getElementById('hud-canvas');
         this.ctx = this.canvas.getContext('2d');
-
+        
+        this.abilitiesContainer = document.getElementById('abilities-container');
+        this.abilityElements = {};
+        
         this.targetDisplay = document.getElementById('target-display');
+        this.targetNameEl = document.getElementById('target-name');
+        this.targetFactionEl = document.getElementById('target-faction');
+        this.targetDistanceEl = document.getElementById('target-distance');
+        this.targetSpeedEl = document.getElementById('target-speed');
+        this.targetHealthBarsEl = document.getElementById('target-health-bars');
 
-        this.canvas.width = this.canvas.clientWidth * window.devicePixelRatio;
-        this.canvas.height = this.canvas.clientHeight * window.devicePixelRatio;
-        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        this.driftConfig = this.dataManager.getConfig('game_balance').playerAbilities.drift;
+
+        this._initDOM();
     }
 
-    update(playerEntityId, gameState) {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this._updateTargetDisplay(playerEntityId);
+    _initDOM() {
+        if (!this.canvas) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = this.canvas.clientWidth * dpr;
+        this.canvas.height = this.canvas.clientHeight * dpr;
+        this.ctx.scale(dpr, dpr);
         
-        if (playerEntityId === null) return;
+        this._createAbilityElements();
+    }
+
+    _createAbilityElements() {
+        if (!this.abilitiesContainer) return;
+        this.abilitiesContainer.innerHTML = '';
+
+        const createBar = (id, labelText) => {
+            const bar = document.createElement('div');
+            bar.className = 'ability-bar';
+            bar.style.display = 'none';
+            
+            const label = document.createElement('span');
+            label.className = 'ability-label';
+            label.textContent = labelText;
+            
+            const container = document.createElement('div');
+            container.className = 'ability-progress-container';
+            
+            const fill = document.createElement('div');
+            fill.className = 'ability-progress-fill';
+            
+            container.appendChild(fill);
+            bar.appendChild(label);
+            bar.appendChild(container);
+            
+            this.abilitiesContainer.appendChild(bar);
+            return { bar, label, fill };
+        };
+
+        this.abilityElements.gcd = createBar('gcd', 'Ship Systems');
+        this.abilityElements.drift = createBar('drift', 'Drift [C]');
+    }
+
+    update(playerEntityId) {
+        if (!this.ctx) return;
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this._updateTargetDisplay();
+        
+        if (playerEntityId === null || !this.ecsWorld.hasEntity(playerEntityId)) {
+            if (this.abilitiesContainer) {
+                this.abilityElements.gcd.bar.style.display = 'none';
+                this.abilityElements.drift.bar.style.display = 'none';
+            }
+            return;
+        }
         
         const health = this.ecsWorld.getComponent(playerEntityId, 'HealthComponent');
-        if (!health) return;
-
-        this.ctx.font = '14px "Courier New", Courier, monospace';
-        this.ctx.fillStyle = '#0f0';
-
-        if (health.isDestroyed) {
-            this.ctx.font = 'bold 24px "Courier New", Courier, monospace';
-            this.ctx.fillStyle = '#f00';
-            this.ctx.fillText('SHIP DESTROYED', 10, 40);
-            this.ctx.font = '14px "Courier New", Courier, monospace';
-            this.ctx.fillStyle = '#0f0';
-            this.ctx.fillText(`Credits: ${gameState.credits} CR`, 10, 80);
+        const stats = this.ecsWorld.getComponent(playerEntityId, 'PlayerStatsComponent');
+        if (!health || !stats || health.state !== 'ALIVE') {
+             if (health && health.state !== 'ALIVE') {
+                this.ctx.font = 'bold 24px "Courier New", Courier, monospace';
+                this.ctx.fillStyle = '#f00';
+                this.ctx.fillText('SHIP DESTROYED', 10, 40);
+                this.ctx.font = '14px "Courier New", Courier, monospace';
+                this.ctx.fillStyle = '#0f0';
+                this.ctx.fillText(`Credits: ${stats.credits} CR`, 10, 80);
+            }
+             if (this.abilitiesContainer) {
+                this.abilityElements.gcd.bar.style.display = 'none';
+                this.abilityElements.drift.bar.style.display = 'none';
+            }
             return;
         }
 
         const physics = this.ecsWorld.getComponent(playerEntityId, 'PhysicsComponent');
         const energy = this.ecsWorld.getComponent(playerEntityId, 'EnergyComponent');
-        if (!physics || !energy) return;
+        const stateComp = this.ecsWorld.getComponent(playerEntityId, 'StateComponent');
+        if (!physics || !energy || !stateComp) return;
 
         const speed = Math.round(physics.velocity.length());
+        this.ctx.font = '14px "Courier New", Courier, monospace';
+        this.ctx.fillStyle = '#0f0';
         this.ctx.fillText(`Speed: ${speed} m/s`, 10, 20);
-        this.ctx.fillText(`Credits: ${gameState.credits} CR`, 200, 20);
+        this.ctx.fillText(`Credits: ${stats.credits} CR`, 200, 20);
 
         this._drawBar(30, 'Shield', health.shield.current, health.shield.max, '#00aaff');
         this._drawBar(48, 'Hull', health.hull.current, health.hull.max, '#ffaa00');
         this._drawBar(66, 'Energy', energy.current, energy.max, '#ffff00');
-
+        
         this._drawWeaponList(playerEntityId);
+        this._updateAbilityStatusDOM(stateComp);
     }
     
-    _updateTargetDisplay(playerEntityId) {
-        const targetId = this.scanner.navTargetId;
+    _updateAbilityStatusDOM(stateComp) {
+        if (!this.abilitiesContainer || !this.abilityElements.gcd) return;
 
-        if (targetId === null || !this.ecsWorld.hasEntity(targetId)) {
-            if (this.targetDisplay.style.display !== 'none') this.targetDisplay.style.display = 'none';
-            return;
-        }
+        const updateElement = (el, labelText, ratio, color, isVisible) => {
+            if (isVisible) {
+                el.bar.style.display = 'flex';
+                el.label.textContent = labelText;
+                el.label.style.color = color;
+                el.fill.style.width = `${ratio * 100}%`;
+                el.fill.style.backgroundColor = color;
+            } else {
+                el.bar.style.display = 'none';
+            }
+        };
 
-        const targetTransform = this.ecsWorld.getComponent(targetId, 'TransformComponent');
-        const targetStaticData = this.ecsWorld.getComponent(targetId, 'StaticDataComponent');
-        const playerTransform = this.ecsWorld.getComponent(playerEntityId, 'TransformComponent');
+        const gcdState = stateComp.states.get('GLOBAL_COOLDOWN');
+        const gcdVisible = !!gcdState;
+        const gcdRatio = gcdState ? 1.0 - (gcdState.timeLeft / gcdState.duration) : 0;
+        updateElement(this.abilityElements.gcd, 'Ship Systems', gcdRatio, '#ffaa00', gcdVisible);
 
-        if (!targetTransform || !targetStaticData || !playerTransform) {
-            if (this.targetDisplay.style.display !== 'none') this.targetDisplay.style.display = 'none';
-            return;
-        }
+        const driftActiveState = stateComp.states.get('DRIFT_ACTIVE');
+        const driftCooldownState = stateComp.states.get('DRIFT_COOLDOWN');
         
+        let driftLabel = 'Drift [C]';
+        let driftRatio = 0;
+        let driftColor = '#00ff00';
+        
+        if (driftActiveState) {
+            driftLabel += ' Active';
+            driftRatio = driftActiveState.timeLeft / driftActiveState.duration;
+            driftColor = '#00aaff';
+        } else if (driftCooldownState) {
+            driftLabel += ' CD';
+            driftRatio = 1.0 - (driftCooldownState.timeLeft / driftCooldownState.duration);
+            driftColor = '#888888';
+        } else {
+            driftLabel += ' Ready';
+            driftRatio = 1.0;
+            driftColor = '#00ff00';
+        }
+        updateElement(this.abilityElements.drift, driftLabel, driftRatio, driftColor, true);
+    }
+
+    _updateTargetDisplay() {
+        if (!this.targetDisplay) return;
+
+        const targetInfo = this.navigationService.getCurrentTargetInfo();
+        
+        if (targetInfo === null) {
+            if (this.targetDisplay.style.display !== 'none') this.targetDisplay.style.display = 'none';
+            return;
+        }
+
         if (this.targetDisplay.style.display !== 'block') this.targetDisplay.style.display = 'block';
 
-        const distance = playerTransform.position.distanceTo(targetTransform.position);
-        const name = targetStaticData.data.name || 'Unknown Target';
-        const distanceStr = Math.round(distance) + 'm';
+        this.targetNameEl.textContent = targetInfo.name;
+        this.targetDistanceEl.textContent = `${Math.round(targetInfo.distance)}m`;
+        this.targetSpeedEl.textContent = `${targetInfo.speed}m/s`;
+
+        this.targetFactionEl.textContent = targetInfo.faction.replace('_FACTION', '');
+        this.targetFactionEl.className = `target-faction faction-${targetInfo.relation}`;
 
         let healthHTML = '';
-        const targetHealth = this.ecsWorld.getComponent(targetId, 'HealthComponent');
-
-        if (targetHealth) {
-            const shieldPercent = targetHealth.shield.max > 0 ? (targetHealth.shield.current / targetHealth.shield.max) * 100 : 0;
-            const hullPercent = targetHealth.hull.max > 0 ? (targetHealth.hull.current / targetHealth.hull.max) * 100 : 0;
+        if (targetInfo.health) {
+            const shieldPercent = targetInfo.health.shield.max > 0 ? (targetInfo.health.shield.current / targetInfo.health.shield.max) * 100 : 0;
+            const hullPercent = targetInfo.health.hull.max > 0 ? (targetInfo.health.hull.current / targetInfo.health.hull.max) * 100 : 0;
             
             healthHTML = `
                 <div class="target-bar-container">
@@ -102,11 +203,7 @@ export class HUDManager {
                 </div>
             `;
         }
-
-        this.targetDisplay.innerHTML = `
-            <div class="target-name">${name} [${distanceStr}]</div>
-            ${healthHTML}
-        `;
+        this.targetHealthBarsEl.innerHTML = healthHTML;
     }
 
     _drawWeaponList(playerEntityId) {
@@ -115,21 +212,21 @@ export class HUDManager {
         
         const hardpoints = this.ecsWorld.getComponent(playerEntityId, 'HardpointComponent');
         const ammo = this.ecsWorld.getComponent(playerEntityId, 'AmmoComponent');
-        if (!hardpoints || !ammo) return;
+        const stateComp = this.ecsWorld.getComponent(playerEntityId, 'StateComponent');
+        if (!hardpoints || !ammo || !stateComp) return;
 
         hardpoints.hardpoints.forEach((hp, index) => {
             const weapon = hp.weapon;
             const isSelected = index === hardpoints.selectedWeaponIndex;
             
-            let line = '';
-            line += isSelected ? '> ' : '  ';
-            line += `[${index + 1}]`;
-
+            let line = isSelected ? '> ' : '  ';
+            
             this.ctx.fillStyle = isSelected ? '#0ff' : '#0f0';
             
             if (weapon.ammoType === 'MISSILE') {
                 const ammoCount = ammo.ammo.get('MISSILE') || 0;
-                const iconColor = '#0f0';
+                const isOnCooldown = hp.cooldownLeft > 0 || (isSelected && stateComp.states.has('GLOBAL_COOLDOWN'));
+                const iconColor = isOnCooldown ? '#ff0000' : '#0f0';
                 
                 const weaponText = `${line} ${weapon.name}`;
                 this.ctx.fillText(weaponText, 10, weaponY);
@@ -154,7 +251,7 @@ export class HUDManager {
             weaponY += lineHeight;
         });
     }
-
+    
     _drawBar(y, label, value, max, color) {
         const barWidth = 150;
         const barHeight = 12;
@@ -194,8 +291,11 @@ export class HUDManager {
     }
 
     resize() {
-        this.canvas.width = this.canvas.clientWidth * window.devicePixelRatio;
-        this.canvas.height = this.canvas.clientHeight * window.devicePixelRatio;
-        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        if (!this.canvas) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = this.canvas.clientWidth * dpr;
+        this.canvas.height = this.canvas.clientHeight * dpr;
+        this.ctx.scale(dpr, dpr);
     }
 }

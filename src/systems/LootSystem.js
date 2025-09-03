@@ -1,13 +1,13 @@
-// src/systems/LootSystem.js
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
+import { eventBus } from '../EventBus.js';
 
 export class LootSystem extends System {
     constructor(world) {
         super(world);
         this.entityFactory = serviceLocator.get('EntityFactory');
-        this.gameStateManager = serviceLocator.get('GameStateManager');
+        this.eventBus = eventBus;
     }
 
     update(delta) {
@@ -16,13 +16,18 @@ export class LootSystem extends System {
         for (const entityId of entities) {
             const health = this.world.getComponent(entityId, 'HealthComponent');
 
-            if (health.isDestroyed && !health.dropsHandled) {
+            if (health.state === 'DESTROYED') {
+                if (!this.world.getComponent(entityId, 'PlayerControlledComponent')) {
+                    this.eventBus.emit('npc_destroyed', { entityId });
+                }
+
                 this.handleDrops(entityId, health.damageLog);
-                health.dropsHandled = true;
+                
+                health.state = 'DROPS_HANDLED';
             }
         }
     }
-
+    
     handleDrops(entityId, damageLog) {
         const transform = this.world.getComponent(entityId, 'TransformComponent');
         if (!transform) return;
@@ -41,10 +46,11 @@ export class LootSystem extends System {
         if (playerIds.length === 0) return;
         const playerEntityId = playerIds[0];
 
-        if (!damageLog.has(playerEntityId)) {
-            return; // Player did not participate
-        }
+        if (!damageLog.has(playerEntityId)) return;
         
+        const playerStats = this.world.getComponent(playerEntityId, 'PlayerStatsComponent');
+        if (!playerStats) return;
+
         let totalDamage = 0;
         damageLog.forEach(damage => totalDamage += damage);
         if (totalDamage === 0) return;
@@ -56,13 +62,14 @@ export class LootSystem extends System {
         const playerReward = Math.round(totalBounty * playerShare);
 
         if (playerReward > 0) {
-            this.gameStateManager.addCredits(playerReward);
-
-            // FIX: Use conditional text for the notification
-            const notificationLabel = (playerShare >= 0.999) ? '(Bounty)' : '(Bounty Share)';
-            const notificationText = `+${playerReward} CR ${notificationLabel}`;
+            playerStats.credits += playerReward;
+            eventBus.emit('player_stats_updated');
             
-            serviceLocator.get('eventBus').emit('notification', { text: notificationText, type: 'success' });
+            const shipName = staticData.data.name || 'Pirate';
+            const notificationLabel = (playerShare >= 0.999) ? 'Bounty' : 'Bounty Share';
+            const notificationText = `+${playerReward} CR (${notificationLabel}: ${shipName})`;
+            
+            this.eventBus.emit('notification', { text: notificationText, type: 'success' });
         }
     }
 
@@ -75,16 +82,22 @@ export class LootSystem extends System {
 
         const salvageContents = { items: [], credits: 0 };
 
-        if (dropTable.credits && Math.random() < (dropTable.credits.chance || 1.0)) {
-            const creditAmount = THREE.MathUtils.randInt(dropTable.credits.amount[0], dropTable.credits.amount[1]);
-            if (creditAmount > 0) {
-                salvageContents.credits = creditAmount;
+        if (dropTable.credits) {
+            if (typeof dropTable.credits === 'object' && dropTable.credits.amount) {
+                if (Math.random() < (dropTable.credits.chance || 1.0)) {
+                    const creditRange = dropTable.credits.amount;
+                    salvageContents.credits = THREE.MathUtils.randInt(creditRange[0], creditRange[1]);
+                }
+            } 
+            else if (Array.isArray(dropTable.credits)) {
+                const creditRange = dropTable.credits;
+                salvageContents.credits = THREE.MathUtils.randInt(creditRange[0], creditRange[1]);
             }
         }
-
+        
         if (dropTable.items) {
             dropTable.items.forEach(itemDrop => {
-                if (Math.random() < itemDrop.chance) {
+                if (Math.random() < (itemDrop.chance || 1.0)) {
                     const quantity = Array.isArray(itemDrop.quantity)
                         ? THREE.MathUtils.randInt(itemDrop.quantity[0], itemDrop.quantity[1])
                         : itemDrop.quantity;

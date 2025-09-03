@@ -1,4 +1,3 @@
-// src/MeshFactory.js
 import * as THREE from 'three';
 
 export class MeshFactory {
@@ -14,22 +13,77 @@ export class MeshFactory {
         const color = parseInt(modelData.color, 16);
         const material = new THREE.MeshStandardMaterial({
             color: color, metalness: 0.8, roughness: 0.5,
-            emissive: color, emissiveIntensity: 0.1
+            emissive: color, emissiveIntensity: 0.1,
+            side: THREE.DoubleSide // Important for custom convex shapes
         });
+
         modelData.components.forEach(comp => {
             let geom;
-            if (comp.type === 'box') { geom = new THREE.BoxGeometry(...comp.size); }
+            if (comp.type === 'box') {
+                geom = new THREE.BoxGeometry(...comp.size);
+                if (comp.modifiers) {
+                    this._applyModifiers(geom, comp.modifiers);
+                }
+            } else if (comp.type === 'customShape' && comp.vertices && comp.faces) {
+                geom = this._createCustomGeometry(comp.vertices, comp.faces);
+            }
+            
             if (geom) {
                 const part = new THREE.Mesh(geom, material);
-                part.position.set(...comp.pos);
+                part.position.set(...(comp.pos || [0, 0, 0]));
                 shipGroup.add(part);
             }
         });
         return shipGroup;
     }
 
+    static _createCustomGeometry(verts, faces) {
+        const geometry = new THREE.BufferGeometry();
+        const vertices = new Float32Array(verts.flat());
+        const indices = new Uint16Array(faces.flat());
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    static _applyModifiers(geometry, modifiers) {
+        const positions = geometry.attributes.position;
+        const vertex = new THREE.Vector3();
+        const size = new THREE.Box3().setFromBufferAttribute(positions).getSize(new THREE.Vector3());
+
+        modifiers.forEach(mod => {
+            if (mod.type === 'taper') {
+                const { axis, amount, side } = mod;
+
+                for (let i = 0; i < positions.count; i++) {
+                    vertex.fromBufferAttribute(positions, i);
+
+                    if (Math.sign(vertex[axis]) === side) {
+                        const taper = 1.0 + amount;
+                        if (axis === 'z') {
+                            vertex.x *= taper;
+                            vertex.y *= taper;
+                        } else if (axis === 'y') {
+                            vertex.x *= taper;
+                            vertex.z *= taper;
+                        } else if (axis === 'x') {
+                            vertex.y *= taper;
+                            vertex.z *= taper;
+                        }
+                    }
+                    positions.setXYZ(i, vertex.x, vertex.y, vertex.z);
+                }
+            }
+        });
+        geometry.attributes.position.needsUpdate = true;
+        geometry.computeVertexNormals();
+    }
+
+
     static createAsteroidMesh(asteroidData) {
-        const geometry = new THREE.IcosahedronGeometry(12, 2); // Increased detail for smoother deformation
+        const geometry = new THREE.IcosahedronGeometry(12, 2);
         const color = new THREE.Color(parseInt(asteroidData.color, 16));
         
         const material = new THREE.MeshStandardMaterial({
@@ -42,11 +96,9 @@ export class MeshFactory {
         material.instancing = true;
 
         material.onBeforeCompile = (shader) => {
-            // Inject the helper function before main().
             shader.vertexShader = shader.vertexShader.replace(
                 'void main() {',
                 `
-                // Simple noise function using a seed
                 float noise(vec3 p, float seed) {
                     return sin(p.x * seed) * sin(p.y * seed) * sin(p.z * seed);
                 }
@@ -55,17 +107,13 @@ export class MeshFactory {
                 `
             );
 
-            // Inject the displacement logic that uses the function inside main().
             shader.vertexShader = shader.vertexShader.replace(
                 '#include <begin_vertex>',
                 `
                 #include <begin_vertex>
                 
-                // FIX: Use the static gl_InstanceID as a seed instead of the dynamic instanceMatrix.
-                // This makes the deformation unique per instance, but constant over time.
-                // Add 1.0 to avoid instance 0 having a seed of 0.0 (which results in no displacement).
                 float seed = float(gl_InstanceID) + 1.0;
-                float displacement = noise(position * 2.0, seed) * 3.0; // Noise frequency and amplitude
+                float displacement = noise(position * 2.0, seed) * 3.0;
                 transformed += normal * displacement;
                 `
             );
@@ -80,8 +128,40 @@ export class MeshFactory {
             color: 0x888888, metalness: 0.9, roughness: 0.5,
             emissive: 0x445566, emissiveIntensity: 0.2
         });
-        group.add(new THREE.Mesh(new THREE.TorusGeometry(120, 15, 16, 100), stationMat));
+        
+        const torusMesh = new THREE.Mesh(new THREE.TorusGeometry(120, 15, 16, 100), stationMat);
+        torusMesh.rotation.x = Math.PI / 2; // Align torus with the XZ plane
+        group.add(torusMesh);
+        
         group.add(new THREE.Mesh(new THREE.SphereGeometry(30, 32, 32), stationMat));
+
+        // Add connecting spokes
+        const numSpokes = 4;
+        const spokeGeom = new THREE.CylinderGeometry(5, 5, 90, 8); // Adjusted length
+        for (let i = 0; i < numSpokes; i++) {
+            const spoke = new THREE.Mesh(spokeGeom, stationMat);
+            const angle = (i / numSpokes) * Math.PI * 2;
+            spoke.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+            spoke.position.set(Math.cos(angle) * 75, 0, Math.sin(angle) * 75); // Adjusted position
+            spoke.rotation.y = -angle;
+            group.add(spoke);
+        }
+
+        // Add marker lights to the torus to make rotation visible
+        const lightMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2 });
+        const lightGeom = new THREE.BoxGeometry(4, 4, 4);
+        const numLights = 4;
+        for (let i = 0; i < numLights; i++) {
+            const angle = (i / numLights) * Math.PI * 2;
+            const light = new THREE.Mesh(lightGeom, lightMat);
+            light.position.set(
+                Math.cos(angle) * 120,
+                0,
+                Math.sin(angle) * 120
+            );
+            group.add(light);
+        }
+
         return group;
     }
 
@@ -180,7 +260,6 @@ export class MeshFactory {
 
     static createSalvageMesh() {
         const geometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
-        // Deform the vertices to look like wreckage
         const posAttr = geometry.getAttribute('position');
         for (let i = 0; i < posAttr.count; i++) {
             const vertex = new THREE.Vector3().fromBufferAttribute(posAttr, i);
@@ -219,7 +298,6 @@ export class MeshFactory {
     static createShieldImpactMesh(radius, localImpactPoint) {
         const geometry = new THREE.SphereGeometry(radius * 1.05, 32, 32);
         
-        // FIX: New shader material for the wave effect.
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 progress: { value: 0.0 },
@@ -242,18 +320,15 @@ export class MeshFactory {
                 void main() {
                     float dist = distance(vPosition, impactPoint);
                     
-                    float waveWidth = 3.0; // How wide the ripple is
-                    float waveSpeed = 80.0; // How fast it expands
+                    float waveWidth = 3.0;
+                    float waveSpeed = 80.0;
                     
-                    // Calculate the position of the wave's crest
                     float crestPosition = progress * waveSpeed;
 
-                    // Calculate intensity based on distance from the crest
                     float intensity = smoothstep(crestPosition + waveWidth, crestPosition, dist) - 
                                       smoothstep(crestPosition, crestPosition - waveWidth, dist);
                     intensity = max(0.0, intensity);
                     
-                    // Fade out the entire effect over time
                     float fade = pow(1.0 - progress, 2.0);
 
                     gl_FragColor = vec4(color, intensity * fade * 0.9);

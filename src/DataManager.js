@@ -40,7 +40,14 @@ export class DataManager {
                 case 'shields': store(this.shields); break;
                 case 'items': store(this.items); break;
                 case 'asteroids': store(this.asteroids); break;
-                case 'config': this.configs.set(path.split('/').pop().replace('.json', ''), data); break;
+                case 'config': 
+                    // Special handling for zones config as it's an array
+                    if (path.endsWith('zones_config.json')) {
+                        this.configs.set('zones_config', data);
+                    } else {
+                        this.configs.set(path.split('/').pop().replace('.json', ''), data);
+                    }
+                    break;
                 default: console.warn(`Unknown data type for path: ${path}`);
             }
 

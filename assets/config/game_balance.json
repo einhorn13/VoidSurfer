@@ -4,36 +4,170 @@
         "rearmCostPerAmmo": {
             "PROJECTILE": 1,
             "MISSILE": 100
-        }
+        },
+        "workshopStock": [
+            "PULSE_LASER",
+            "LIGHT_PLASMA_GUN",
+            "MISSILE_LAUNCHER",
+            "BASIC_ENGINE",
+            "PERFORMANCE_ENGINE",
+            "BASIC_SHIELD",
+            "FAST_RECHARGE_SHIELD"
+        ]
     },
     "playerBoost": {
         "energyCostPerSecond": 12.5,
         "activationCost": 10,
         "speedMultiplier": 2.5
     },
+    "playerAbilities": {
+        "drift": {
+            "duration": 7.0,
+            "cooldown": 30.0,
+            "energyCost": 10
+        }
+    },
+    "playerRespawn": {
+        "delay": 5.0
+    },
+    "playerSensors": {
+        "maxVisibilityRange": 2000,
+        "detectionRange": 1000,
+        "scanRange": 500
+    },
     "gameplay": {
         "station": {
             "dockingRadius": 200,
-            "maxDockingSpeed": 5
+            "maxDockingSpeed": 5,
+            "collisionPenalty": {
+                "minSpeed": 10,
+                "creditFine": 250
+            }
         },
         "weapons": {
             "missileMinRange": 20,
-            "missileMaxRange": 500
+            "missileMaxRange": 500,
+            "laserMaxRange": 1000
+        },
+        "missiles": {
+            "armingTime": 0.5
         },
         "ai": {
-            "scanRange": 500,
-            "attackRange": 150,
-            "fleeHealthThreshold": 0.25,
-            "reengageShieldThreshold": 0.5,
-            "missileCooldown": 5.0,
-            "missileMinRange": 80,
-            "missileMaxRange": 400
+            "targetPriorities": {
+                "playerBonus": 1000,
+                "currentTargetBonus": 200
+            },
+            "behaviors": {
+                "standard": {
+                    "scanInterval": 0.5,
+                    "scanRange": 1000,
+                    "attackRange": 150,
+                    "fleeHealthThreshold": 0.25,
+                    "reengageShieldThreshold": 0.5,
+                    "missileCooldown": 5.0,
+                    "missileMinRange": 80,
+                    "missileMaxRange": 400,
+                    "optimalRange": [160, 260],
+                    "evasionDamageThreshold": 20,
+                    "strafeDirectionChangeChance": 0.2,
+                    "targetSwitchCooldown": 12.0,
+                    "firingAngleTolerance": 0.1,
+                    "aimingSpreadFactor": 0.4,
+                    "aimingDelay": 0.5,
+                    "maxTrackingSpeed": 1.2,
+                    "circleStrafe": {
+                        "strafeDuration": [2.0, 4.0],
+                        "fireDuration": [1.0, 2.5]
+                    },
+                    "avoidance": {
+                        "checkInterval": 0.3,
+                        "whiskerLength": 50,
+                        "whiskerAngle": 0.5236
+                    }
+                },
+                "interceptor": {
+                    "scanInterval": 0.3,
+                    "scanRange": 1000,
+                    "attackRange": 120,
+                    "fleeHealthThreshold": 0.4,
+                    "reengageShieldThreshold": 0.6,
+                    "missileCooldown": 10.0,
+                    "missileMinRange": 60,
+                    "missileMaxRange": 300,
+                    "optimalRange": [100, 200],
+                    "evasionDamageThreshold": 15,
+                    "strafeDirectionChangeChance": 0.5,
+                    "targetSwitchCooldown": 8.0,
+                    "firingAngleTolerance": 0.08,
+                    "aimingSpreadFactor": 0.56,
+                    "aimingDelay": 0.3,
+                    "maxTrackingSpeed": 2.2,
+                    "circleStrafe": {
+                        "strafeDuration": [1.5, 3.0],
+                        "fireDuration": [0.8, 2.0]
+                    },
+                    "avoidance": {
+                        "checkInterval": 0.3,
+                        "whiskerLength": 50,
+                        "whiskerAngle": 0.5236
+                    }
+                },
+                 "gunship": {
+                    "scanInterval": 0.4,
+                    "scanRange": 1000,
+                    "attackRange": 250,
+                    "fleeHealthThreshold": 0.15,
+                    "reengageShieldThreshold": 0.4,
+                    "missileCooldown": 4.0,
+                    "missileMinRange": 100,
+                    "missileMaxRange": 500,
+                    "optimalRange": [300, 440],
+                    "evasionDamageThreshold": 35,
+                    "strafeDirectionChangeChance": 0.1,
+                    "targetSwitchCooldown": 15.0,
+                    "firingAngleTolerance": 0.11,
+                    "aimingSpreadFactor": 0.24,
+                    "aimingDelay": 0.7,
+                    "maxTrackingSpeed": 0.8,
+                    "circleStrafe": {
+                        "strafeDuration": [3.0, 5.0],
+                        "fireDuration": [1.5, 3.0]
+                    },
+                    "avoidance": {
+                        "checkInterval": 0.3,
+                        "whiskerLength": 50,
+                        "whiskerAngle": 0.5236
+                    }
+                },
+                "trader": {
+                    "scanInterval": 1.0,
+                    "scanRange": 1000,
+                    "fleeHealthThreshold": 1.0,
+                    "reengageShieldThreshold": 1.0,
+                    "navReachedThreshold": 150
+                }
+            }
+        },
+        "effects": {
+            "damageNumberPoolSize": 150
         }
     },
     "collisionPhysics": {
         "minImpactEnergyThreshold": 50,
         "damageScalar": 0.1,
-        "maxCollisionDamage": 1000,
-        "elasticity": 0.9
+        "maxCollisionDamage": 250,
+        "elasticity": 0.4
+    },
+    "factionRelations": {
+        "PLAYER_FACTION": [
+            "PIRATE_FACTION"
+        ],
+        "PIRATE_FACTION": [
+            "PLAYER_FACTION",
+            "CIVILIAN_FACTION"
+        ],
+        "CIVILIAN_FACTION": [
+            "PIRATE_FACTION"
+        ]
     }
 }

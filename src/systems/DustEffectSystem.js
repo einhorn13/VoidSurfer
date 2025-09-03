@@ -1,4 +1,3 @@
-// src/systems/DustEffectSystem.js
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
@@ -16,7 +15,7 @@ export class DustEffectSystem extends System {
         const effect = this.world.getComponent(effectEntities[0], 'DustEffectComponent');
 
         const playerIds = this.world.query(['PlayerControlledComponent']);
-        const playerIsAlive = playerIds.length > 0 && !this.world.getComponent(playerIds[0], 'HealthComponent')?.isDestroyed;
+        const playerIsAlive = playerIds.length > 0 && this.world.getComponent(playerIds[0], 'HealthComponent')?.state === 'ALIVE';
 
         let shipVelocity = new THREE.Vector3();
         if (playerIsAlive) {

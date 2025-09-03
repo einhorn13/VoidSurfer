@@ -14,13 +14,19 @@ export class RegenerationSystem extends System {
         for (const entityId of allEntities) {
             const health = this.world.getComponent(entityId, 'HealthComponent');
             const energy = this.world.getComponent(entityId, 'EnergyComponent');
+            const healthBar = this.world.getComponent(entityId, 'HealthBarComponent');
 
             // Regenerate shields
             if (health && health.shield.current < health.shield.max) {
+                const oldShield = health.shield.current;
                 health.shield.current = Math.min(
                     health.shield.max,
                     health.shield.current + health.shield.regenRate * delta
                 );
+                // OPTIMIZATION: Set flag if shield changed
+                if (healthBar && oldShield !== health.shield.current) {
+                    healthBar.needsUpdate = true;
+                }
             }
 
             // Regenerate energy

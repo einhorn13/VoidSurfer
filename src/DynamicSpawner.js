@@ -1,86 +1,145 @@
 import * as THREE from 'three';
 
-export class DynamicSpawner {
-    constructor(worldManager, spawnConfig) {
-        this.worldManager = worldManager;
-        this.ecsWorld = worldManager.ecsWorld; // Get access to ECS world
-        this.config = spawnConfig;
-        if (!this.config) {
-            throw new Error("Spawn config not provided to DynamicSpawner!");
-        }
+const SPAWN_SAFETY_RADIUS = 50; // Min distance from other objects
+const MAX_SPAWN_ATTEMPTS = 10;
 
-        this.spawnTimer = this.config.spawnInterval;
-        this.factionCounts = {};
+export class DynamicSpawner {
+    constructor(gameDirector, spawnConfig) {
+        this.gameDirector = gameDirector;
+        this.ecsWorld = gameDirector.ecsWorld;
+        this.config = spawnConfig;
+        
+        this.spawnCheckTimer = this.config.spawnInterval;
+        this.globalSpawnCooldown = 0;
+
+        // Helper objects to avoid reallocation
+        this.queryBox = new THREE.Box3();
+        this.queryBoxSize = new THREE.Vector3();
     }
 
     update(delta, playerEntityId) {
         if (playerEntityId === null) return;
         
+        this.globalSpawnCooldown = Math.max(0, this.globalSpawnCooldown - delta);
+        this.spawnCheckTimer -= delta;
+        if (this.spawnCheckTimer > 0) return;
+        this.spawnCheckTimer = this.config.spawnInterval;
+
         const playerTransform = this.ecsWorld.getComponent(playerEntityId, 'TransformComponent');
         if (!playerTransform) return;
-        const playerPos = playerTransform.position;
         
-        const allShipIds = this.ecsWorld.query(['ShipTag']);
+        this.handleDeactivation(playerTransform.position);
+        
+        if (this.globalSpawnCooldown > 0) return;
 
-        allShipIds.forEach(shipId => {
-            const isPlayer = this.ecsWorld.getComponent(shipId, 'PlayerControlledComponent');
-            if (isPlayer) return;
+        const currentZone = this.gameDirector.getCurrentZone(playerTransform.position);
+        if (!currentZone || !currentZone.encounterPool) return;
 
-            const shipTransform = this.ecsWorld.getComponent(shipId, 'TransformComponent');
-            if (!shipTransform) return;
+        const localCounts = this.getLocalFactionCounts(playerTransform.position);
 
-            const distance = shipTransform.position.distanceTo(playerPos);
-            if (distance > this.config.despawnDistance) {
-                // Mark for cleanup instead of direct removal
-                const health = this.ecsWorld.getComponent(shipId, 'HealthComponent');
-                if (health) health.isDestroyed = true;
-            }
-        });
-
-        this.spawnTimer -= delta;
-        if (this.spawnTimer > 0) return;
-        this.spawnTimer = this.config.spawnInterval;
-
-        this.recountFactions(allShipIds);
-
-        for (const [faction, limit] of Object.entries(this.config.factionLimits)) {
-            const currentCount = this.factionCounts[faction] || 0;
-            if (currentCount < limit) {
-                this.spawnShipForFaction(faction, playerTransform);
-                break; 
+        for (const [faction, limit] of Object.entries(this.config.localFactionLimits)) {
+            if ((localCounts.get(faction) || 0) < limit) {
+                this.trySpawnEncounter(currentZone, playerTransform);
+                return;
             }
         }
     }
 
-    recountFactions(allShipIds) {
-        this.factionCounts = {};
-        allShipIds.forEach(shipId => {
-            const isPlayer = this.ecsWorld.getComponent(shipId, 'PlayerControlledComponent');
-            if (isPlayer) return;
+    handleDeactivation(playerPosition) {
+        const allShipIds = this.ecsWorld.query(['ShipComponent']);
 
-            const factionComp = this.ecsWorld.getComponent(shipId, 'FactionComponent');
-            const faction = factionComp.name;
-            this.factionCounts[faction] = (this.factionCounts[faction] || 0) + 1;
+        allShipIds.forEach(shipId => {
+            if (this.ecsWorld.getComponent(shipId, 'PlayerControlledComponent')) return;
+
+            const shipTransform = this.ecsWorld.getComponent(shipId, 'TransformComponent');
+            const render = this.ecsWorld.getComponent(shipId, 'RenderComponent');
+            const health = this.ecsWorld.getComponent(shipId, 'HealthComponent');
+
+            if (!shipTransform || !render || !render.isVisible || !health || health.state !== 'ALIVE') return;
+
+            if (shipTransform.position.distanceTo(playerPosition) > this.config.despawnDistance) {
+                this.gameDirector.deactivateNpc(shipId);
+            }
         });
     }
 
-    spawnShipForFaction(faction, playerTransform) {
-        const possibleShips = this.config.shipsByFaction[faction];
-        if (!possibleShips || possibleShips.length === 0) return;
-
-        const shipId = possibleShips[Math.floor(Math.random() * possibleShips.length)];
-
-        const spawnDirection = new THREE.Vector3(
-            Math.random() - 0.5,
-            Math.random() - 0.5,
-            Math.random() - 0.5
-        ).normalize();
-
-        const spawnDistance = THREE.MathUtils.randFloat(this.config.spawnDistance.min, this.config.spawnDistance.max);
-        const position = playerTransform.position.clone().add(spawnDirection.multiplyScalar(spawnDistance));
-
-        const options = { position, faction };
+    getLocalFactionCounts(playerPosition) {
+        const counts = new Map();
+        const nearbyShips = this.ecsWorld.query(['ShipComponent', 'TransformComponent', 'FactionComponent', 'RenderComponent']);
         
-        this.worldManager.createShip(shipId, options);
+        for (const shipId of nearbyShips) {
+            const transform = this.ecsWorld.getComponent(shipId, 'TransformComponent');
+            const render = this.ecsWorld.getComponent(shipId, 'RenderComponent');
+            if (render.isVisible && transform.position.distanceTo(playerPosition) < this.config.despawnDistance) {
+                const faction = this.ecsWorld.getComponent(shipId, 'FactionComponent').name;
+                counts.set(faction, (counts.get(faction) || 0) + 1);
+            }
+        }
+        return counts;
+    }
+    
+    isSpawnPointSafe(position, radius) {
+        const spatialGrid = this.gameDirector.worldManager.spatialGrid;
+        this.queryBoxSize.set(radius * 2, radius * 2, radius * 2);
+        this.queryBox.setFromCenterAndSize(position, this.queryBoxSize);
+        
+        const nearby = spatialGrid.getNearby({ boundingBox: this.queryBox });
+
+        // If any object is found in the vicinity, the point is not safe.
+        return nearby.length === 0;
+    }
+
+    trySpawnEncounter(zone, playerTransform) {
+        const zoneThreat = this.gameDirector.zoneThreatLevels.get(zone.id) || 0;
+        
+        const possibleEncounters = zone.encounterPool.filter(enc => {
+            const squadData = this.config.squads[enc.squadId];
+            return squadData && (squadData.threat || 0) <= zoneThreat;
+        });
+
+        if (possibleEncounters.length === 0) return;
+
+        const totalWeight = possibleEncounters.reduce((sum, enc) => sum + enc.weight, 0);
+        let random = Math.random() * totalWeight;
+        const selectedEncounter = possibleEncounters.find(enc => (random -= enc.weight) < 0);
+
+        if (!selectedEncounter) return;
+
+        let spawnPosition = null;
+        for (let i = 0; i < MAX_SPAWN_ATTEMPTS; i++) {
+            const potentialPosition = this.calculateSpawnPosition(playerTransform.position);
+            if (this.isSpawnPointSafe(potentialPosition, SPAWN_SAFETY_RADIUS)) {
+                spawnPosition = potentialPosition;
+                break;
+            }
+        }
+
+        if (!spawnPosition) {
+            console.warn("DynamicSpawner: Could not find a safe spawn point after several attempts.");
+            return;
+        }
+
+        const squadData = this.config.squads[selectedEncounter.squadId];
+        
+        let objective = { type: selectedEncounter.objective, targetPosition: null };
+        if (objective.type === 'TRADE_RUN_STATION') {
+            const station = this.ecsWorld.getComponent(this.gameDirector.worldManager.stationEntityId, 'TransformComponent');
+            objective.targetPosition = station?.position;
+        } else if (objective.type === 'PATROL_AREA' || objective.type === 'HUNT_IN_AREA') {
+            objective.targetPosition = spawnPosition;
+        }
+
+        this.gameDirector.reactivateOrSpawnSquad(squadData.ships, spawnPosition, objective);
+        
+        this.globalSpawnCooldown = THREE.MathUtils.randFloat(15, 20);
+    }
+    
+    calculateSpawnPosition(playerPosition) {
+        const spawnDirection = new THREE.Vector3(
+            Math.random() - 0.5, (Math.random() - 0.5) * 0.5, Math.random() - 0.5
+        ).normalize();
+        
+        const spawnDistance = THREE.MathUtils.randFloat(this.config.spawnDistance.min, this.config.spawnDistance.max);
+        return playerPosition.clone().add(spawnDirection.multiplyScalar(spawnDistance));
     }
 }

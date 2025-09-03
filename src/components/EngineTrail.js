@@ -13,12 +13,14 @@ class Particle {
         this.isActive = false;
     }
 
-    init(originPosition, shipVelocity, shipQuaternion) {
-        this.position.copy(originPosition);
+    init(originPosition, shipVelocity, shipQuaternion, radius) {
         const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(shipQuaternion);
-        this.position.add(forward.clone().multiplyScalar(-1.5));
+        const back = forward.clone().negate();
         
-        const exhaustVel = forward.multiplyScalar(-10);
+        // Position the particle just behind the ship's bounding sphere
+        this.position.copy(originPosition).add(back.multiplyScalar(radius * 1.1));
+        
+        const exhaustVel = forward.multiplyScalar(-15); // Push particles away from the back
         this.velocity.copy(shipVelocity).add(exhaustVel);
 
         this.age = 0;
@@ -39,7 +41,6 @@ export class EngineTrail {
         
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        // We will compute the bounding sphere manually
         geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
 
         const material = new THREE.PointsMaterial({
@@ -51,7 +52,6 @@ export class EngineTrail {
         });
 
         this.points = new THREE.Points(geometry, material);
-        // Disable automatic frustum culling to prevent the entire system from disappearing.
         this.points.frustumCulled = false;
         this.scene.add(this.points);
 
@@ -72,7 +72,7 @@ export class EngineTrail {
         this.emissionRate = 0;
         if (!this.isStopped) {
             if (ship.isAccelerating) {
-                this.emissionRate = 30; // particles per second
+                this.emissionRate = 30;
             }
             if (ship.boostMultiplier > 1.0) {
                 this.emissionRate = 90;
@@ -87,7 +87,7 @@ export class EngineTrail {
             for (let i = 0; i < particlesToSpawn; i++) {
                 if (this.particlePool.length === 0) break;
                 const particle = this.particlePool[this.nextParticleIndex];
-                particle.init(ship.transform.position, ship.velocity, ship.transform.rotation);
+                particle.init(ship.transform.position, ship.velocity, ship.transform.rotation, ship.radius);
                 this.nextParticleIndex = (this.nextParticleIndex + 1) % MAX_PARTICLES;
             }
         }
@@ -122,7 +122,6 @@ export class EngineTrail {
             activeParticleCount++;
         }
         
-        // Only make the points object visible if there are active particles to draw.
         this.points.visible = activeParticleCount > 0;
         
         this.points.geometry.setDrawRange(0, activeParticleCount);

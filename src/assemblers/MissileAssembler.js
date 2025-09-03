@@ -1,4 +1,3 @@
-// src/assemblers/MissileAssembler.js
 import * as THREE from 'three';
 import { BaseAssembler } from './BaseAssembler.js';
 import { MeshFactory } from '../MeshFactory.js';
@@ -12,6 +11,7 @@ import { HealthComponent } from '../components/HealthComponent.js';
 import { HomingComponent } from '../components/HomingComponent.js';
 import { StaticDataComponent } from '../components/StaticDataComponent.js';
 import { FactionComponent } from '../components/FactionComponent.js';
+import { StateComponent } from '../components/StateComponent.js';
 
 export class MissileAssembler extends BaseAssembler {
     createMissile(originEntityId, hardpoint, targetEntityId) {
@@ -24,7 +24,6 @@ export class MissileAssembler extends BaseAssembler {
             return null;
         }
 
-        const entityId = this.ecsWorld.createEntity();
         const weaponData = hardpoint.weapon;
         const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.5, 8), new THREE.MeshStandardMaterial({ color: 0xffdddd, emissive: 0xff2222 }));
 
@@ -36,19 +35,26 @@ export class MissileAssembler extends BaseAssembler {
         const missileThrust = forward.clone().multiplyScalar(30);
         const velocity = initialVelocity.add(missileThrust);
 
-        this.ecsWorld.addComponent(entityId, new TransformComponent({ position: startPosition, rotation: originTransform.rotation.clone() }));
-        this.ecsWorld.addComponent(entityId, new PhysicsComponent({ velocity, mass: 1, bodyType: 'dynamic' }));
-        this.ecsWorld.addComponent(entityId, new RenderComponent(mesh));
-        
+        const missileConfig = this.dataManager.getConfig('game_balance').gameplay.missiles;
+
         const collision = new CollisionComponent();
         collision.boundingSphere.radius = weaponData.collisionRadius || 2.0;
-        this.ecsWorld.addComponent(entityId, collision);
         
-        this.ecsWorld.addComponent(entityId, new MissileComponent({ damage: weaponData.damage, faction: originFaction.name, originId: originEntityId, weaponData: weaponData }));
-        this.ecsWorld.addComponent(entityId, new HomingComponent({ targetId: targetEntityId, turnRate: 1.5, maxSpeed: 80 }));
-        this.ecsWorld.addComponent(entityId, new LifetimeComponent(weaponData.lifetime || 15.0));
-        this.ecsWorld.addComponent(entityId, new HealthComponent({ hull: 1, maxHull: 1, shield: 0, maxShield: 0, shieldRegenRate: 0 }));
-        this.ecsWorld.addComponent(entityId, new StaticDataComponent({ type: 'missile' }));
+        const state = new StateComponent();
+        state.states.set('ARMING', { timeLeft: missileConfig.armingTime });
+
+        const entityId = this.ecsWorld.createEntity()
+            .with(new TransformComponent({ position: startPosition, rotation: originTransform.rotation.clone() }))
+            .with(new PhysicsComponent({ velocity, mass: 1, bodyType: 'dynamic' }))
+            .with(new RenderComponent(mesh))
+            .with(collision)
+            .with(new MissileComponent({ damage: weaponData.damage, faction: originFaction.name, originId: originEntityId, weaponData: weaponData }))
+            .with(state)
+            .with(new HomingComponent({ targetId: targetEntityId, turnRate: 1.5, maxSpeed: 80 }))
+            .with(new LifetimeComponent(weaponData.lifetime || 15.0))
+            .with(new HealthComponent({ hull: 1, maxHull: 1, shield: 0, maxShield: 0, shieldRegenRate: 0 }))
+            .with(new StaticDataComponent({ type: 'missile' }))
+            .build();
         
         mesh.userData.entityId = entityId;
         this.scene.add(mesh);

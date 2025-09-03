@@ -21,13 +21,18 @@ export class EntityAssembler {
         this.item = new ItemAssembler();
     }
 
+    init() {
+        this.projectile.init();
+        this.effect.init(); // Initialize damage number pool
+    }
+
     // Ship
     createShip(shipId, options) { return this.ship.createShip(shipId, options); }
     updateMassAndPerformance(entityId) { this.ship.updateMassAndPerformance(entityId); }
 
     // Projectiles
     createMissile(originId, hardpoint, targetId) { return this.missile.createMissile(originId, hardpoint, targetId); }
-    createPlasmaBolt(originId, hardpoint) { return this.projectile.createPlasmaBolt(originId, hardpoint); }
+    createPlasmaBolt(originId, hardpoint) { return this.projectile.getProjectile(originId, hardpoint); }
     
     // Environment
     createStation(position) { return this.environment.createStation(position); }
@@ -38,7 +43,9 @@ export class EntityAssembler {
     createExplosion(position) { return this.effect.createExplosion(position); }
     createHullDebris(pos, norm, vel, col) { return this.effect.createHullDebris(pos, norm, vel, col); }
     createLaserBeam(start, end, color) { return this.effect.createLaserBeam(start, end, color); }
-    createDamageNumber(position, amount) { return this.effect.createDamageNumber(position, amount); }
+    spawnDamageNumber(position, amount) { return this.effect.getDamageNumber(position, amount); }
+    releaseDamageNumber(entityId) { this.effect.releaseDamageNumber(entityId); }
+
 
     // Item & Salvage
     createItem(itemId, quantity, position) { return this.item.createItem(itemId, quantity, position); }

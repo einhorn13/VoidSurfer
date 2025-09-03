@@ -1,6 +1,7 @@
 {
     "id": "WEAK_ENGINE",
     "name": "Weak Engine",
+    "cost": 500,
     "maxSpeed": 17.5,
     "acceleration": 5,
     "mass": 15

@@ -1,14 +1,14 @@
-// src/systems/PlayerRespawnSystem.js
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
 import { eventBus } from '../EventBus.js';
-
-const RESPAWN_DELAY = 5.0;
 
 export class PlayerRespawnSystem extends System {
     constructor(world) {
         super(world);
         this.gameStateManager = serviceLocator.get('GameStateManager');
+        const dataManager = serviceLocator.get('DataManager');
+        this.respawnDelay = dataManager.getConfig('game_balance').playerRespawn.delay;
+
         this.isRespawning = false;
         this.respawnTimer = -1;
     }
@@ -19,12 +19,10 @@ export class PlayerRespawnSystem extends System {
 
         if (playerEntityId) {
             const health = this.world.getComponent(playerEntityId, 'HealthComponent');
-            if (health && health.isDestroyed && !this.isRespawning) {
+            if (health && health.state !== 'ALIVE' && !this.isRespawning) {
                 this.isRespawning = true;
-                this.respawnTimer = RESPAWN_DELAY;
-
-                // CRITICAL FIX: Pass the entity ID, not the entity object.
-                this.gameStateManager.updatePlayerShipState(playerEntityId);
+                this.respawnTimer = this.respawnDelay;
+                this.gameStateManager.saveState();
             }
         }
 

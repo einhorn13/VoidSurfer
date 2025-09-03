@@ -3,8 +3,6 @@ import { System } from '../ecs/System.js';
 import * as THREE from 'three';
 import { serviceLocator } from '../ServiceLocator.js';
 
-const HEALTH_BAR_Y_OFFSET = 5;
-
 export class HealthBarSystem extends System {
     constructor(world) {
         super(world);
@@ -13,7 +11,8 @@ export class HealthBarSystem extends System {
     }
 
     update(delta) {
-        const entities = this.world.query(['HealthComponent', 'HealthBarComponent', 'TransformComponent']);
+        // Added CollisionComponent to get the bounding sphere for positioning
+        const entities = this.world.query(['HealthComponent', 'HealthBarComponent', 'TransformComponent', 'CollisionComponent']);
         const playerTargetId = this.scanner.navTargetId;
 
         for (const entityId of entities) {
@@ -25,9 +24,16 @@ export class HealthBarSystem extends System {
 
             const healthComp = this.world.getComponent(entityId, 'HealthComponent');
             const transform = this.world.getComponent(entityId, 'TransformComponent');
+            const collision = this.world.getComponent(entityId, 'CollisionComponent');
 
             const isDamaged = healthComp.hull.current < healthComp.hull.max || healthComp.shield.current < healthComp.shield.max;
             const isTargeted = entityId === playerTargetId;
+            
+            // OPTIMIZATION: Check if health has changed before redrawing
+            const healthChanged = healthBar.lastKnownHull !== healthComp.hull.current || healthBar.lastKnownShield !== healthComp.shield.current;
+            if (healthChanged) {
+                healthBar.needsUpdate = true;
+            }
 
             if (healthComp.isDestroyed || (!isDamaged && !isTargeted)) {
                 if (healthBar.sprite.visible) {
@@ -40,10 +46,20 @@ export class HealthBarSystem extends System {
                 healthBar.sprite.visible = true;
             }
 
-            healthBar.sprite.position.copy(transform.position).y += HEALTH_BAR_Y_OFFSET;
-            healthBar.sprite.quaternion.copy(this.camera.quaternion);
+            // Calculate dynamic offset based on ship size (bounding sphere radius)
+            const yOffset = collision.boundingSphere.radius * 1.5;
+            healthBar.sprite.position.copy(transform.position).y += yOffset;
 
-            this.drawCompositeHealthBar(healthBar, healthComp);
+            // Ensure the sprite always faces the camera
+            healthBar.sprite.quaternion.copy(this.camera.quaternion);
+            
+            // OPTIMIZATION: Only redraw if necessary
+            if (healthBar.needsUpdate) {
+                this.drawCompositeHealthBar(healthBar, healthComp);
+                healthBar.lastKnownHull = healthComp.hull.current;
+                healthBar.lastKnownShield = healthComp.shield.current;
+                healthBar.needsUpdate = false;
+            }
         }
     }
 

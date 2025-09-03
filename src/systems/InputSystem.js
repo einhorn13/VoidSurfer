@@ -1,79 +1,133 @@
-// src/systems/InputSystem.js
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
 import { InputMapper } from '../InputMapper.js';
-import { keyState } from '../InputController.js';
-import { DockCommand } from '../commands/DockCommand.js';
+import { actionBuffer } from '../ActionBuffer.js';
+import * as THREE from 'three';
 
 export class InputSystem extends System {
     constructor(world) {
         super(world);
-        this.entityAssembler = serviceLocator.get('EntityFactory');
         this.gameStateManager = serviceLocator.get('GameStateManager');
-        this.scanner = serviceLocator.get('Scanner');
-        this.dataManager = serviceLocator.get('DataManager');
         this.eventBus = serviceLocator.get('eventBus');
-        this.worldManager = serviceLocator.get('WorldManager'); // Need this for station info
-
+        this.worldManager = serviceLocator.get('WorldManager');
+        this.systemMapManager = serviceLocator.get('SystemMapManager');
         this.inputMapper = new InputMapper();
-
-        this.balanceConfig = this.dataManager.getConfig('game_balance');
-        this.boostConfig = this.balanceConfig.playerBoost;
-        this.weaponConfig = this.balanceConfig.gameplay.weapons;
-
-        // State that needs to be managed by the system
-        this.isBoosting = false;
-        this.primaryWeaponCooldown = 0;
-        this.missileCooldown = 0;
-        this.launchFailureNotificationTimer = 0;
+        this.debugSystem = null;
+        
+        const balanceConfig = serviceLocator.get('DataManager').getConfig('game_balance');
+        this.driftConfig = balanceConfig.playerAbilities.drift;
     }
 
     update(delta) {
-        const playerIds = this.world.query(['PlayerControlledComponent']);
-        if (playerIds.length === 0) return;
-        
-        const playerEntityId = playerIds[0];
-        const physics = this.world.getComponent(playerEntityId, 'PhysicsComponent');
-        if (physics) {
-            physics.isAccelerating = false; // Reset acceleration flag each frame
+        if (!this.debugSystem) {
+            this.debugSystem = this.world.systems.find(sys => sys.constructor.name === 'DebugSystem');
         }
 
+        // Global, non-entity actions are handled here
+        if (actionBuffer.isPressed('TOGGLE_DEBUG_MODE')) {
+            if (this.debugSystem) {
+                this.debugSystem.toggle();
+            }
+        }
+        
+        if (this.debugSystem && this.debugSystem.isEnabled) {
+            if (actionBuffer.isPressed('INCREASE_SIM_SPEED')) this.gameStateManager.increaseSimulationSpeed();
+            if (actionBuffer.isPressed('DECREASE_SIM_SPEED')) this.gameStateManager.decreaseSimulationSpeed();
+        }
+
+        const playerIds = this.world.query(['PlayerControlledComponent']);
+        if (playerIds.length === 0) {
+            actionBuffer.update();
+            return;
+        }
+        
+        const playerEntityId = playerIds[0];
+        
         this.handleDockingPrompt(playerEntityId);
+        
+        if (actionBuffer.isPressed('TOGGLE_SYSTEM_MAP')) {
+            this.systemMapManager.toggle();
+        }
+        
+        if (this.gameStateManager.getCurrentState() === 'DOCKED' && actionBuffer.isPressed('DOCK')) {
+            this.eventBus.emit('undock_request');
+        }
 
         if (!this.gameStateManager.isPlayerControlEnabled()) {
+            actionBuffer.update();
             return;
         }
 
         const health = this.world.getComponent(playerEntityId, 'HealthComponent');
-        if (health.isDestroyed) return;
-
-        // Update cooldowns
-        if (this.primaryWeaponCooldown > 0) this.primaryWeaponCooldown -= delta;
-        if (this.missileCooldown > 0) this.missileCooldown -= delta;
-        if (this.launchFailureNotificationTimer > 0) this.launchFailureNotificationTimer -= delta;
-
-        // Get commands from the mapper
-        const commands = this.inputMapper.update();
-        
-        // Prepare a services object for commands
-        const commandServices = {
-            delta,
-            inputSystem: this,
-            scanner: this.scanner,
-            entityAssembler: this.entityAssembler
-        };
-
-        // Execute all commands
-        for (const command of commands) {
-            if (command instanceof DockCommand) {
-                this.handleDockingAttempt(playerEntityId);
-            } else {
-                command.execute(playerEntityId, this.world, commandServices);
-            }
+        if (health.state !== 'ALIVE') {
+            actionBuffer.update();
+            return;
         }
 
-        // Handle direct state changes like weapon selection
-        this.handleWeaponSelection(playerEntityId);
+        const commandQueueComp = this.world.getComponent(playerEntityId, 'CommandQueueComponent');
+        if (!commandQueueComp) {
+            actionBuffer.update();
+            return;
+        }
+
+        const physics = this.world.getComponent(playerEntityId, 'PhysicsComponent');
+        if (physics) {
+            physics.isAccelerating = false;
+            physics.strafeDirection = 0;
+        }
+
+        if (actionBuffer.isPressed('DOCK')) {
+            this.handleDockingAttempt(playerEntityId);
+        }
+
+        if (actionBuffer.isPressed('DRIFT')) {
+            this.handleDriftAttempt(playerEntityId);
+        }
+        
+        // Entity-specific actions are mapped to commands
+        const commands = this.inputMapper.mapActionsToCommands();
+        for (const command of commands) {
+            commandQueueComp.queue.push(command);
+        }
+        
+        actionBuffer.update();
+    }
+    
+    handleDriftAttempt(entityId) {
+        const stateComp = this.world.getComponent(entityId, 'StateComponent');
+        const energy = this.world.getComponent(entityId, 'EnergyComponent');
+        const physics = this.world.getComponent(entityId, 'PhysicsComponent');
+        const transform = this.world.getComponent(entityId, 'TransformComponent');
+
+        if (!stateComp || !energy || !physics || !transform) return;
+
+        if (stateComp.states.has('DRIFT_ACTIVE') || stateComp.states.has('DRIFT_COOLDOWN') || energy.current < this.driftConfig.energyCost) {
+            return;
+        }
+
+        energy.current -= this.driftConfig.energyCost;
+        stateComp.states.set('DRIFT_ACTIVE', { timeLeft: this.driftConfig.duration, duration: this.driftConfig.duration });
+        stateComp.states.set('DRIFT_COOLDOWN', { timeLeft: this.driftConfig.cooldown, duration: this.driftConfig.cooldown });
+        
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(transform.rotation);
+        const impulseMagnitude = physics.maxSpeed * 0.5;
+        const impulse = forward.multiplyScalar(impulseMagnitude);
+        physics.velocity.add(impulse);
+        
+        const absoluteMaxSpeed = physics.maxSpeed * 4.0;
+        if (physics.velocity.lengthSq() > absoluteMaxSpeed * absoluteMaxSpeed) {
+            physics.velocity.setLength(absoluteMaxSpeed);
+        }
+        
+        this.eventBus.emit('notification', { text: 'Drift Mode Engaged', type: 'info' });
+    }
+    
+    handleDockingAttempt(playerEntityId) {
+        if (this.isDockingPossible(playerEntityId)) {
+            const scanner = serviceLocator.get('Scanner');
+            scanner.setNavTarget(this.worldManager.stationEntityId);
+            this.eventBus.emit('dock_request');
+        }
     }
 
     handleDockingPrompt(playerEntityId) {
@@ -81,48 +135,21 @@ export class InputSystem extends System {
             this.eventBus.emit('docking_prompt_update', false);
             return;
         }
-
         const isDockingPossible = this.isDockingPossible(playerEntityId);
         this.eventBus.emit('docking_prompt_update', isDockingPossible);
     }
-    
+
     isDockingPossible(playerEntityId) {
         const stationTransform = this.world.getComponent(this.worldManager.stationEntityId, 'TransformComponent');
-        const stationComp = this.world.getComponent(this.worldManager.stationEntityId, 'StationComponent');
+        const dockable = this.world.getComponent(this.worldManager.stationEntityId, 'DockableComponent');
         const playerTransform = this.world.getComponent(playerEntityId, 'TransformComponent');
         const playerPhysics = this.world.getComponent(playerEntityId, 'PhysicsComponent');
-
-        if (stationTransform && stationComp && playerTransform && playerPhysics) {
+        
+        if (stationTransform && dockable && playerTransform && playerPhysics) {
             const distance = stationTransform.position.distanceTo(playerTransform.position);
             const speed = playerPhysics.velocity.length();
-            return distance < stationComp.dockingRadius && speed < stationComp.maxDockingSpeed;
+            return distance < dockable.dockingRadius && speed < dockable.maxDockingSpeed;
         }
         return false;
-    }
-
-    handleDockingAttempt(playerEntityId) {
-        if (this.isDockingPossible(playerEntityId)) {
-            this.eventBus.emit('dock_request');
-        }
-    }
-
-    handleWeaponSelection(entityId) {
-        const hardpoints = this.world.getComponent(entityId, 'HardpointComponent');
-        if (!hardpoints) return;
-        
-        const weaponKeys = ['1', '2', '3', '4', '5'];
-        for (let i = 0; i < weaponKeys.length; i++) {
-            if (keyState[weaponKeys[i]] && hardpoints.hardpoints.length > i) {
-                hardpoints.selectedWeaponIndex = i;
-            }
-        }
-    }
-
-    // This method is now used by FireCommand to show notifications
-    _notifyLaunchFailure(message) {
-        if (this.launchFailureNotificationTimer <= 0) {
-            this.eventBus.emit('notification', { text: message, type: 'warning', duration: 2.0 });
-            this.launchFailureNotificationTimer = 2.0;
-        }
     }
 }

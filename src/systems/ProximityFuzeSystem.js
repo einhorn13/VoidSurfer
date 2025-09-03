@@ -1,4 +1,3 @@
-// src/systems/ProximityFuzeSystem.js
 import * as THREE from 'three';
 import { System } from '../ecs/System.js';
 import { serviceLocator } from '../ServiceLocator.js';
@@ -11,11 +10,18 @@ export class ProximityFuzeSystem extends System {
     }
 
     update(delta) {
-        const entities = this.world.query(['MissileComponent', 'TransformComponent', 'HealthComponent']);
+        const entities = this.world.query(['MissileComponent', 'StateComponent', 'TransformComponent', 'HealthComponent']);
 
         for (const missileId of entities) {
             const missileHealth = this.world.getComponent(missileId, 'HealthComponent');
-            if (missileHealth.isDestroyed) continue;
+            const stateComp = this.world.getComponent(missileId, 'StateComponent');
+
+            if (missileHealth.state !== 'ALIVE') continue;
+            
+            const armingState = stateComp.states.get('ARMING');
+            if (armingState && armingState.timeLeft > 0) {
+                continue;
+            }
 
             const missile = this.world.getComponent(missileId, 'MissileComponent');
             const missileTransform = this.world.getComponent(missileId, 'TransformComponent');
@@ -32,7 +38,7 @@ export class ProximityFuzeSystem extends System {
                 if (targetId === missileId || targetId === missile.originId) continue;
 
                 const targetHealth = this.world.getComponent(targetId, 'HealthComponent');
-                if (!targetHealth || targetHealth.isDestroyed) continue;
+                if (!targetHealth || targetHealth.state !== 'ALIVE') continue;
                 
                 const missileFaction = missile.faction;
                 const targetFaction = this.world.getComponent(targetId, 'FactionComponent');
@@ -42,12 +48,12 @@ export class ProximityFuzeSystem extends System {
                 if (targetTransform) {
                     const distance = missileTransform.position.distanceTo(targetTransform.position);
                     if (distance < proximityRadius) {
-                        this.world.publish('hit', {
-                            sourceId: missileId,
-                            targetId: targetId,
-                            impactPoint: missileTransform.position.clone()
+                        this.world.publish('detonation', {
+                            missileId: missileId,
+                            position: missileTransform.position.clone(),
+                            targetId: targetId // Pass the target that triggered the fuze
                         });
-                        // Once it detonates, stop checking for this missile
+                        missileHealth.state = 'DESTROYED';
                         return; 
                     }
                 }

@@ -1,0 +1,51 @@
+[
+    {
+        "id": "STATION_TRAFFIC_ZONE",
+        "name": "Station Traffic Zone",
+        "shape": "sphere",
+        "position": [800, 100, -1500],
+        "size": 2500,
+        "initialThreat": 0,
+        "encounterPool": [
+            { "weight": 10, "squadId": "CIV_FREIGHTER_SOLO", "objective": "TRADE_RUN_STATION" },
+            { "weight": 4, "squadId": "CIV_FREIGHTER_ESCORTED", "objective": "TRADE_RUN_STATION" },
+            { "weight": 2, "squadId": "PIRATE_SCOUT_SOLO", "objective": "LOITER_NEAR_STATION" }
+        ]
+    },
+    {
+        "id": "INNER_BELT",
+        "name": "Inner Asteroid Belt",
+        "shape": "sphere",
+        "position": [-200, 50, -800],
+        "size": 1000,
+        "initialThreat": 1,
+        "encounterPool": [
+            { "weight": 6, "squadId": "PIRATE_SCOUT_PAIR", "objective": "HUNT_IN_AREA" },
+            { "weight": 5, "squadId": "CIV_FREIGHTER_SOLO", "objective": "MINE_ASTEROIDS" },
+            { "weight": 2, "squadId": "PIRATE_RAIDER_PATROL", "objective": "PATROL_AREA" }
+        ]
+    },
+    {
+        "id": "PIRATE_OUTER_BELT",
+        "name": "Pirate Outer Belt",
+        "shape": "sphere",
+        "position": [800, 0, 500],
+        "size": 1200,
+        "initialThreat": 3,
+        "encounterPool": [
+            { "weight": 8, "squadId": "PIRATE_RAIDER_PATROL", "objective": "PATROL_AREA" },
+            { "weight": 4, "squadId": "PIRATE_HUNTER_WING", "objective": "HUNT_IN_AREA" },
+            { "weight": 1, "squadId": "CIV_FREIGHTER_SOLO", "objective": "TRAVEL_THROUGH" }
+        ]
+    },
+    {
+        "id": "DEEP_SPACE",
+        "name": "Deep Space",
+        "shape": "world",
+        "initialThreat": 0,
+        "encounterPool": [
+            { "weight": 1, "squadId": "PIRATE_SCOUT_SOLO", "objective": "PATROL_AREA" },
+            { "weight": 1, "squadId": "CIV_FREIGHTER_SOLO", "objective": "TRAVEL_THROUGH" }
+        ]
+    }
+]

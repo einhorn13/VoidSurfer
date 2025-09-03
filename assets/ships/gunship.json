@@ -13,10 +13,11 @@
     "proceduralModel": {
         "color": "99aaff",
         "components": [
-            { "type": "box", "size": [4, 1, 5], "pos": [0, 0, 0] },
-            { "type": "box", "size": [1, 0.8, 1.5], "pos": [0, 0.9, -1.5] },
-            { "type": "box", "size": [0.8, 0.8, 2], "pos": [-1.5, 0, 2] },
-            { "type": "box", "size": [0.8, 0.8, 2], "pos": [1.5, 0, 2] }
+            { "type": "box", "size": [4, 1.5, 8], "pos": [0, 0, 0],
+              "modifiers": [{ "type": "taper", "axis": "z", "amount": -0.5, "side": -1 }]
+            },
+            { "type": "box", "size": [2.5, 2, 4], "pos": [3.25, 0, 1] },
+            { "type": "box", "size": [2.5, 2, 4], "pos": [-3.25, 0, 1] }
         ]
     },
     "bountyCredits": [750, 1000],
@@ -28,7 +29,7 @@
     "engineSlot": { "type": "CLASS_3", "equipped": "HEAVY_ENGINE" },
     "shieldSlot": { "type": "CLASS_3", "equipped": "HEAVY_SHIELD" },
     "hardpoints": [
-        { "type": "LIGHT", "equipped": "LIGHT_PLASMA_GUN", "pos": [-1.5, 0, -1.5] },
-        { "type": "LIGHT", "equipped": "MISSILE_LAUNCHER", "pos": [1.5, 0, -1.5] }
+        { "type": "LIGHT", "equipped": "LIGHT_PLASMA_GUN", "pos": [-3.25, 0, -0.5] },
+        { "type": "LIGHT", "equipped": "MISSILE_LAUNCHER", "pos": [3.25, 0, -0.5] }
     ]
 }

@@ -1,4 +1,4 @@
-# Void Surfer v 0.2 (ELITE-inspired HTML5 game)
+# Void Surfer v 0.3 (ELITE-inspired HTML5 game)
 
 A lightweight 3D space combat and exploration game built with JavaScript and Three.js, running entirely in the browser. This project is inspired by classic space simulators, focusing on fast-paced dogfights and dynamic world events.
 
@@ -53,6 +53,38 @@ The game is controlled via keyboard and mouse.
 3.  Open your browser and navigate to `http://localhost:8000`.
 
 ---
+
+## Changelog - v0.3
+
+**Key Features**
+
+*   **Workshop & Inventory:** Added a Workshop to the station services. Players can now buy, sell, and equip different weapons, engines, and shields to customize their ship. An inventory now stores unequipped modules.
+*   **Interactive System Map:** A new interactive, zoomable system map has been added (default key 'M'). It displays celestial bodies, zones of interest, and detected ships. Players can set navigation targets directly from the map.
+*   **Tactical Minimap:** A new minimap has been integrated into the HUD, providing at-a-glance information about nearby contacts, their altitude relative to the player, and allegiance.
+*   **Drift Mechanic:** A new "Drift" ability has been added, allowing for advanced combat maneuvers by temporarily disabling flight assist.
+
+**AI Overhaul**
+
+*   **Behavior Tree System:** The entire AI has been rewritten from a simple state machine to a much more complex and dynamic Behavior Tree system.
+*   **Distinct AI Personalities:** Ships now have unique AI behaviors (e.g., `trader`, `interceptor`, `gunship`) with different parameters for engagement range, evasion, and weapon usage.
+*   **Advanced Combat Tactics:** AI now actively performs collision avoidance, attempts to maintain an optimal combat range, evades incoming fire, and uses more intelligent targeting logic.
+
+**World & Gameplay**
+
+*   **Dynamic World Zones:** The game world is now divided into distinct zones (e.g., Station Traffic Zone, Asteroid Belts) with unique encounter types.
+*   **Squad-Based Spawning:** Enemies and civilians now spawn in logical squads (e.g., a freighter with interceptor escorts, or a pirate hunting party) based on the zone's dynamically calculated threat level.
+*   **Improved Flight Model:** Players can now use strafe controls for more precise lateral movement. The physics simulation now runs at a fixed timestep for more consistent behavior.
+
+**UI & UX**
+
+*   **Input System Refactor:** The input handling has been completely rebuilt to be more robust, responsive, and ready for future keybinding customization.
+*   **Enhanced Navigation UI:** Added off-screen indicators to always keep track of the current navigation target, whether it's on-screen or not.
+*   **Improved Target Display:** The target information panel is now more detailed, showing faction, relation (hostile/neutral/friendly), and speed.
+*   **Performance UI:** World-space UI elements (like target brackets and the crosshair) are now rendered on a high-performance canvas instead of using slower DOM elements.
+
+**Performance & Stability**
+
+*   **Object Pooling:** Implemented object pooling for projectiles, damage numbers, and NPC ships. This significantly reduces stuttering and improves performance during intense combat by recycling objects instead of creating and destroying them.
 
 ## Changelog - v0.2
 
